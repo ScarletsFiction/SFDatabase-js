@@ -3,8 +3,8 @@
 [![Written by](https://img.shields.io/badge/Written%20by-ScarletsFiction-%231e87ff.svg)](LICENSE)
 [![Software License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
-# SFDatabase
-SFDatabase is a database library that can help you build a SQL Query and execute it to the server from Nodejs or local browser with WebSQL or AlaSQL.
+# SFDatabase-js
+SFDatabase-js is a database library that can help you build a SQL Query and execute it to the server from Nodejs or local browser with WebSQL or AlaSQL.
 AlaSQL is required for web browser that doesn't support WebSQL. It will fallback to IndexedDB or LocalStorage for saving the database.
 
 For Nodejs, you should install [mysqljs](https://github.com/mysqljs/mysql/)
@@ -85,12 +85,12 @@ myDatabase.drop("test", console.warn);
 
 ## Contribution
 
-If you want to help in SFDatabase library, please fork this project and edit on your repository, then make a pull request to here.
+If you want to help in SFDatabase-js library, please fork this project and edit on your repository, then make a pull request to here.
 
 Keep the code simple and clear.
 
 ## License
 
-SFDatabase is under the MIT license.
+SFDatabase-js is under the MIT license.
 
 But don't forget to put the a link to this repository.
