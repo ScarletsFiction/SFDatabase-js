@@ -61,12 +61,12 @@ myDatabase.drop("test", console.warn);
 		}
 	};
 
-	var MySQLCredentials = {
+	var options = {
 		debug:function(query, data){
 			console.log("Query: "+query, data);
 		}
 	}; //{host:'localhost', user:'root', password:''};
-	var myDatabase = new SFDatabase('YourDatabaseName', MySQLCredentials, function(resumePending){
+	var myDatabase = new SFDatabase('YourDatabaseName', options, function(resumePending){
 		// Wait until the class reference saved to myDatabase variable
 		setTimeout(function(){
 		    console.log('Database Initialized!');
