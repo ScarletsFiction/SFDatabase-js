@@ -8,7 +8,7 @@ SFDatabase is a database library that can help you build a SQL Query and execute
 AlaSQL is required for web browser that doesn't support WebSQL. It will fallback to IndexedDB or LocalStorage for saving the database.
 
 For Nodejs, you should install [mysqljs](https://github.com/mysqljs/mysql/)
-> npm i mysqljs/mysql
+> $ npm i mysqljs/mysql
 
 On Nodejs, connection pooling will be used. So it would need a single connection only for every query.
 
