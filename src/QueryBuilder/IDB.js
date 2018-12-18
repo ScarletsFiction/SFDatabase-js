@@ -8,6 +8,7 @@ function IDBQueryBuilder(){
 			var matches = rules_[i].match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
 			var check = matches[1].toLowerCase();
 			if(check === 'AND' || check === 'OR') continue;
+			var rule = rules[rules_[i]];
 
 			var operationCondition = true;
 
@@ -22,91 +23,104 @@ function IDBQueryBuilder(){
 			}
 
 			else if(matches[3] === undefined){ // Equal to
-				if(data[matches[1]] != rules[rules_[i]])
+				if(rule instanceof Array){
+					if(rule.indexOf(data[matches[1]]) === -1)
+						operationCondition = false; // When nothing match
+				}
+				else if(data[matches[1]] != rule)
 					operationCondition = false; // When "not equal to"
 			}
 
 			else if(matches[3] === '!'){ // Not equal to
-				if(data[matches[1]] == rules[rules_[i]])
+				if(rule instanceof Array){
+					if(rule.indexOf(data[matches[1]]) !== -1)
+					operationCondition = false; // When something match
+				}
+				else if(data[matches[1]] == rule)
 					operationCondition = false; // When "equal to"
 			}
 
 			else if(matches[3] === '>'){ // Greater than
-				if(data[matches[1]] <= rules[rules_[i]])
+				if(data[matches[1]] <= rule)
 					operationCondition = false; // When "lower or equal to"
 			}
 
 			else if(matches[3] === '>='){ // Greater or equal
-				if(data[matches[1]] < rules[rules_[i]])
+				if(data[matches[1]] < rule)
 					operationCondition = false; // When "lower than"
 			}
 
 			else if(matches[3] === '<'){ // Lower than
-				if(data[matches[1]] >= rules[rules_[i]])
+				if(data[matches[1]] >= rule)
 					operationCondition = false; // When "more than or equal"
 			}
 
 			else if(matches[3] === '<='){ // Lower or equal
-				if(data[matches[1]] > rules[rules_[i]])
+				if(data[matches[1]] > rule)
 					operationCondition = false; // When "more than"
 			}
 
 			else if(matches[3] === '><'){ // Between 2 value
-				if(data[matches[1]] <= rules[rules_[i]][0] || data[matches[1]] >= rules[rules_[i]][1])
+				if(data[matches[1]] <= rule[0] || data[matches[1]] >= rule[1])
 					operationCondition = false; // When "not between 2 value or equal"
 			}
 
 			else if(matches[3] === '=><='){ // Between 2 value
-				if(data[matches[1]] < rules[rules_[i]][0] || data[matches[1]] > rules[rules_[i]][1])
+				if(data[matches[1]] < rule[0] || data[matches[1]] > rule[1])
 					operationCondition = false; // When "not between 2 value"
 			}
 
 			else if(matches[3] === '<>'){ // Not between than 2  value
-				if(data[matches[1]] >= rules[rules_[i]][0] || data[matches[1]] <= rules[rules_[i]][1])
+				if(data[matches[1]] >= rule[0] || data[matches[1]] <= rule[1])
 					operationCondition = false; // When "between 2 value or equal"
 			}
 
 			else if(matches[3] === '<=>'){ // Not between than 2  value
-				if(data[matches[1]] > rules[rules_[i]][0] || data[matches[1]] < rules[rules_[i]][1])
+				if(data[matches[1]] > rule[0] || data[matches[1]] < rule[1])
 					operationCondition = false; // When "between 2 value"
 			}
 
 			else if(matches[3].indexOf('~') !== -1){ // Data likes
 				var likeCode = 1; // 1 = %value%, 2 = %value, 3 = value%
-				var regexed = rules[rules_[i]];
-				if(rules[rules_[i]][0] === '%' && rules[rules_[i]].slice(-1) === '%'){
-					likeCode = 1;
-					regexed = regexed.slice(1, -1);
-				}
+				var regexed = [];
+				var rule_ = rule instanceof Array ? rule : [rule];
 
-				else if(rules[rules_[i]].slice(0,1) === '%'){
-					likeCode = 2;
-					regexed = regexed.slice(1);
-				}
-
-				else if(rules[rules_[i]].slice(-1) === '%'){
-					likeCode = 3;
-					regexed = regexed.slice(0, -1);
-				}
-				
-				regexed = regexed.replace(regexEscape, '\\$&');
-
-				if(likeCode === 2)
-					regexed = regexed+'$';
-
-				else if(likeCode === 3)
-					regexed = '^'+regexed;
-
-				regexed = RegExp(regexed, 'i');
-
-	 			if(matches[3].indexOf('!') !== -1){ // Data not like
-					if(!data[matches[1]].match(regexed)){
-						operationCondition = false; // When "found match"
+				for (var i = 0; i < rule_.length; i++) {
+					var temp = rule_[i];
+					if(temp[0] === '%' && temp.slice(-1) === '%'){
+						likeCode = 1;
+						temp = temp.slice(1, -1);
 					}
+
+					else if(temp[0] === '%'){
+						likeCode = 2;
+						temp = temp.slice(1);
+					}
+
+					else if(temp.slice(-1) === '%'){
+						likeCode = 3;
+						temp = temp.slice(0, -1);
+					}
+
+					temp = temp.replace(regexEscape, '\\$&');
+
+					if(likeCode === 2)
+						temp = temp+'$';
+
+					else if(likeCode === 3)
+						temp = '^'+temp;
+
+					regexed.push(temp);
 				}
 
-				else if(!data[matches[1]].match(regexed)){
-					operationCondition = false; // When "not found match"
+				var exist = data[matches[1]].match(RegExp(regexed.join('|'), 'i'));
+
+				if(matches[3].indexOf('!') !== -1){ // Data not like
+					if(exist) operationCondition = false; // When "have match"
+				}
+
+				else if(!exist){ // Data like
+					operationCondition = false; // When "not match"
 				}
 			}
 
@@ -122,45 +136,67 @@ function IDBQueryBuilder(){
 		return currentCondition;
 	}
 
-	// The data order need more performance optimization
-	var IDBDataOrder = function(ref, rules_, checkOnly){
-		if(checkOnly){
-			if(rules_['ORDER'] || rules_['LIMIT'])
-				return true;
-			return false;
-		}
-
-		var rules = Object.keys(rules_);
-		for (var i = 0; i < rules.length; i++) {
-			if(rules[i]=='ORDER') { // {column:(ASC, DESC)}
-				var column = Object.keys(rules_['ORDER']);
-				for (var i = 0; i < column.length; i++) {
-					ref.data.sort(sorterByKey(column[i], rules_['ORDER'][column[i]]=='DESC'));
-				}
-			}
-			else if(rules[i]=='LIMIT') { // (int)limit or [startFrom, limit]
-				if(typeof rules_['LIMIT'] === 'number'){
-					ref.data = ref.data.splice(0, rules_['LIMIT']);
-				} else {
-					ref.data = ref.data.splice(rules_['LIMIT'][0], rules_['LIMIT'][1]);
-				}
-			}
-		}
-		delete rules_.LIMIT;
-		delete rules_.ORDER;
-		if(Object.keys(rules_).length!=0)
-			for (var i = ref.data.length - 1; i >= 0; i--) {
-				if(!IDBWhere(ref.data[i], rules_)){
-					ref.data.splice(i, 1);
-				}
-			}
-	}
-
 	var regexEscape = /[-\/\\^$*+?.()|[\]{}]/g;
 	var validateText = function(text){
 		if(typeof text !== 'string') return text;
 		var matches = text.match(/[a-zA-Z0-9_\.]+/);
 		return matches[0]||'';
+	}
+
+	var IDBLimit = function(query){
+		query.found++;
+		query.processed++;
+
+		if(query.found >= query.startFrom){
+			if(query.processed <= query.limit)
+				return 1; // Continue
+			else
+				return -1; // End
+		}
+
+		return 0;
+	}
+
+	var prepareQuery = function(objectStore, where){
+		var obj = {
+			found:0, // For limiting
+			processed:0 // For limiting
+		};
+
+		if(where.LIMIT !== undefined){
+			if(typeof where.LIMIT === 'number'){
+				obj.startFrom = 0;
+				obj.limit = where.LIMIT;
+			}
+			else{
+				obj.startFrom = where.LIMIT[0];
+				obj.limit = where.LIMIT[1];
+			}
+		}
+		else obj.limit = false;
+
+		if(where.ORDER !== undefined){
+			if(typeof where.ORDER === 'string') // ASC
+				obj.cursor = objectStore.index(where.ORDER).openCursor(null, 'next');
+			else {
+				for(var key in where.ORDER){
+					if(where.ORDER[key] === 'ASC')
+						obj.cursor = objectStore.index(key).openCursor(null, 'next');
+
+					if(where.ORDER[key] === 'DESC')
+						obj.cursor = objectStore.index(key).openCursor(null, 'prev');
+					break;
+				}
+			}
+		}
+
+		// Not ordered
+		else obj.cursor = objectStore.openCursor();
+
+		delete where.LIMIT;
+		delete where.ORDER;
+		
+		return obj;
 	}
 
 	/*
@@ -212,117 +248,114 @@ function IDBQueryBuilder(){
 
 	scope.select = function(tableName, select, where, successCallback, errorCallback){
   		var objectStore = scope.getObjectStore(tableName, "readonly", errorCallback);
-  		var openCursor = objectStore.openCursor();
-  		var ordered = IDBDataOrder(null, where, true);
-  		var filteredData = [];
-  		var orderedData = {data:[]};
+  		var query = prepareQuery(objectStore, where);
+		query.cursor.onerror = errorCallback;
+		query.result = []; // Will be returned from success callback
+
   		var operation = function(value){
       		var temp = {};
       		for (var i = 0; i < select.length; i++) {
       			temp[select[i]] = value[select[i]];
       		}
-      		filteredData.push(temp);
+      		query.result.push(temp);
   		}
-		openCursor.onerror = errorCallback;
 
-		openCursor.onsuccess = function(event){
+		query.cursor.onsuccess = function(event){
       		var cursor = event.target.result;
         	if(cursor){
       			var value = cursor.value;
-      			if(ordered){
-      				orderedData.data.push(value);
-      			}
-      			else if(IDBWhere(value, where)){
-      				operation(value);
+      			if(IDBWhere(value, where)){
+      				if(query.limit !== false){
+      					var code = IDBLimit(query);
+
+      					if(code === -1){
+      						operation(value); // Get last data
+      						successCallback(query.result);
+      						return;
+      					}
+      					else if(code === 1)
+      						operation(value); // Get data
+      				}
+
+      				else operation(value);
       			}
 		    	cursor.continue();
-		    } else {
-		    	if(ordered){
-      				IDBDataOrder(orderedData, where, false);
-      				for (var i = 0; i < orderedData.data.length; i++) {
-      					operation(orderedData.data[i]);
-      				}
-      			}
-		    	successCallback(filteredData);
 		    }
+
+		    // End of rows
+		    else successCallback(query.result);
 		};
 	}
 
 	scope.delete = function(tableName, where, successCallback, errorCallback){
   		var objectStore = scope.getObjectStore(tableName, "readwrite", errorCallback);
-  		var openCursor = objectStore.openCursor();
-  		var processed = 0;
-  		var ordered = IDBDataOrder(null, where, true);
-  		var orderedData = {data:[]};
-		openCursor.onerror = errorCallback;
+  		var query = prepareQuery(objectStore, where);
+		query.cursor.onerror = errorCallback;
 
-		openCursor.onsuccess = function(event){
+		query.cursor.onsuccess = function(event){
       		var cursor = event.target.result;
         	if(cursor){
       			var value = cursor.value;
-      			if(ordered){
-      				orderedData.data.push(value);
-      			}
-      			else if(IDBWhere(value, where)){
-      				processed++;
-      				cursor.delete();
+      			if(IDBWhere(value, where)){
+      				if(query.limit !== false){
+      					var code = IDBLimit(query);
+      					
+      					if(code === -1){
+      						cursor.delete(); // Delete last data
+      						successCallback(query.processed);
+      						return;
+      					}
+      					else if(code === 1)
+      						cursor.delete(); // Delete data
+      				}
+
+      				else cursor.delete();
       			}
 		    	cursor.continue();
 		    }
-		    else {
-		    	if(ordered){
-      				IDBDataOrder(orderedData, where, false);
-      				for (var i = 0; i < orderedData.data.length; i++){
-      					objectStore.delete(orderedData.data[i][objectStore.keyPath]);
-      				}
-      				if(successCallback)
-      					successCallback(orderedData.data.length);
-      			}
-		    	else if(successCallback) successCallback(processed);
-		    }
+
+		    // End of rows
+		    else successCallback(query.processed);
 		};
 	}
 
 	scope.update = function(tableName, object, where, successCallback, errorCallback){
-		var columns = Object.keys(object);
   		var objectStore = scope.getObjectStore(tableName, "readwrite", errorCallback);
-  		var openCursor = objectStore.openCursor();
-  		var processed = 0;
-  		var ordered = IDBDataOrder(null, where, true);
-  		var orderedData = {data:[]};
+  		var query = prepareQuery(objectStore, where);
 		openCursor.onerror = errorCallback;
-		var operation = function(value){
+
+		var columns = Object.keys(object);
+		var operation = function(cursor, value){
       		for (var i = 0; i < columns.length; i++) {
       			value[columns[i]] = object[columns[i]];
       		}
-      		processed++;
+      		cursor.update(value);
 		}
 
 		openCursor.onsuccess = function(event){
       		var cursor = event.target.result;
         	if(cursor){
       			var value = cursor.value;
-      			if(ordered){
-      				orderedData.data.push(value);
-      			}
-      			else if(IDBWhere(value, where)){
-      				operation(value);
-      				cursor.update(value);
+      			if(IDBWhere(value, where)){
+      				if(query.limit !== false){
+      					var code = IDBLimit(query);
+      					
+      					if(code === -1){
+      						operation(cursor, value); // Update last data
+      						successCallback(query.processed);
+      						return;
+      					}
+      					else if(code === 1)
+      						operation(cursor, value); // Update data
+      				}
+
+      				else operation(cursor, value);
       			}
 		    	cursor.continue();
 		    }
-		    else {
-		    	if(ordered){
-      				IDBDataOrder(orderedData, where, false);
-      				for (var i = 0; i < orderedData.data.length; i++) {
-      					operation(orderedData.data[i]);
-      					objectStore.put(orderedData.data[i]);
-      				}
-      			}
 
-      			if(successCallback)
-		        	successCallback(processed);
-		    }
+		    // End of rows
+		    else successCallback(query.processed);
 		};
 	}
 
