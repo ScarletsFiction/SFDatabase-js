@@ -2,7 +2,7 @@ function IDBQueryBuilder(){
 	// Optimize with https://developer.mozilla.org/en-US/docs/Web/API/IDBKeyRange
 	// As a query when opening cursor https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/openCursor
 	var IDBWhere = function(data, rules, ORCondition){
-		var currentCondition = ORCondition?false:true;
+		var currentCondition = ORCondition ? false : true;
 		var rules_ = Object.keys(rules);
 		for (var i = 0; i < rules_.length; i++){ // All operation here are focus on performance
 			var matches = rules_[i].match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
@@ -74,7 +74,7 @@ function IDBQueryBuilder(){
 			else if(matches[3].indexOf('~') !== -1){ // Data likes
 				var likeCode = 1; // 1 = %value%, 2 = %value, 3 = value%
 				var regexed = rules[rules_[i]];
-				if(rules[rules_[i]].slice(0,1) === '%'&&rules[rules_[i]].slice(-1) === '%'){
+				if(rules[rules_[i]][0] === '%' && rules[rules_[i]].slice(-1) === '%'){
 					likeCode = 1;
 					regexed = regexed.slice(1, -1);
 				}
@@ -92,20 +92,20 @@ function IDBQueryBuilder(){
 				regexed = regexed.replace(regexEscape, '\\$&');
 
 				if(likeCode === 2)
-					regexed = '^'+regexed;
+					regexed = regexed+'$';
 
 				else if(likeCode === 3)
-					regexed = regexed+'$';
+					regexed = '^'+regexed;
+
 				regexed = RegExp(regexed, 'i');
 
-				// Wait.. doesn't it seems have wrong logic, but why it gives the expected result??
-	 			if(matches[3].indexOf('!')!=-1){ // Data not like
+	 			if(matches[3].indexOf('!') !== -1){ // Data not like
 					if(!data[matches[1]].match(regexed)){
 						operationCondition = false; // When "found match"
 					}
 				}
 
-				else if(data[matches[1]].match(regexed)){
+				else if(!data[matches[1]].match(regexed)){
 					operationCondition = false; // When "not found match"
 				}
 			}
@@ -178,9 +178,8 @@ function IDBQueryBuilder(){
 			var objectStore = scope.db.createObjectStore(tableName, {keyPath:'rowid', autoIncrement:true});
 			for(var i = 0; i < columns_.length; i++){
 				var col = validateText(columns_[i]);
-				if(columns[columns_[i]] instanceof Array && columns[columns_[i]].length >= 2){
+				if(columns[columns_[i]] instanceof Array && columns[columns_[i]].length >= 2)
 					objectStore.createIndex(col, col, {unique: columns[columns_[i]][1] === 'unique'});
-				}
 				else
 					objectStore.createIndex(col, col, {unique: false});
 			}

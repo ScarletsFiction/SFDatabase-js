@@ -75,13 +75,16 @@ function SFDatabase(databaseName, options, onConnected){
 	var isNode = typeof process !== 'undefined' && process.execPath;
 	if(!isNode){
 		var onStructureInitialize = null;
-		var checkStructure = function(){
+		var checkStructure = function(callback){
 			var table = Object.keys(options.databaseStructure);
 
 			var queued = table.length;
 			var reduceQueue = function(){
 				queued--;
-				if(queued === 0) initFinish(scope);
+				if(queued === 0){
+					if(!callback) initFinish(scope);
+					else callback();
+				}
 			};
 
 			setTimeout(function(){
