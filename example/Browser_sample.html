@@ -2,7 +2,7 @@
   <title>SFDatabase Browser</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/themes/prism.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/themes/prism-okaidia.min.css" />
-  <script src="./../SFDatabase.js"></script>
+  <script src="./../dist/sfdatabase.min.js"></script>
 </head><body>
 
 See the result on browser console (<b>Inspect Element -> Console</b>)
@@ -84,7 +84,7 @@ myDatabase.drop("test", console.warn);
 
 	function queryTest(){
 		myDatabase.insert("test", {id:1, name:"abc", words:'hey all'}, function(){
-		    myDatabase.update("test", {'name':'zxc', data:{any:[1,2,3]}}, {id:1, name:'abc'}, function(rows){
+		    myDatabase.update("test", {'name':'zxc', data:{any:[1,2,3]}}, {id:1, OR:{name:'abc', 'name#1':'zxc'}}, function(rows){
 			    myDatabase.select("test", ['name', 'data'], {OR:{id:321, 'words[~]':'hey'}, LIMIT:1}, function(rows){
 			        console.log("Result:", rows[0]);
 

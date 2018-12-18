@@ -4,8 +4,7 @@
 [![Software License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
 # SFDatabase-js
-SFDatabase-js is a database library that can help you build a SQL Query and execute it to the server from Nodejs or local browser with WebSQL or AlaSQL.
-AlaSQL is required for web browser that doesn't support WebSQL. It will fallback to IndexedDB or LocalStorage for saving the database.
+SFDatabase-js is a database library that can help you build a SQL Query and execute it to the server from Nodejs or local browser with WebSQL. It will fallback to IndexedDB or LocalStorage for saving the database if running on browser.
 
 For Nodejs, you should install [mysqljs](https://github.com/mysqljs/mysql/)
 > $ npm i mysqljs/mysql
@@ -26,6 +25,8 @@ var preprocessTable = {
 };
 
 var options = {
+    mysql:true, // NodeJS only
+    websql:true, // Will fallback to indexeddb if failed
     debug:function(query, data){
         console.log("Query: "+query, data);
     }
