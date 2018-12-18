@@ -5,13 +5,33 @@ function IDBQueryBuilder(){
 		var currentCondition = ORCondition?false:true;
 		var rules_ = Object.keys(rules);
 		for (var i = 0; i < rules_.length; i++){ // All operation here are focus on performance
-			var matches = columns[i].match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
+			var matches = rules_[i].match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
 			var check = matches[1].toLowerCase();
-			if(check==='and' || check==='or') continue;
-			if(!children && specialList.indexOf(check)!==-1) continue;
+			if(check === 'AND' || check === 'OR') continue;
 
 			var operationCondition = true;
-			if(matches[3] === '>'){ // Greater than
+
+			// Recurse again
+			if(matches[1] === 'AND'){
+				operationCondition = IDBWhere(data, rules[rules_[i]], false);
+			}
+
+			// Recurse again
+			else if(matches[1] === 'OR'){
+				operationCondition = IDBWhere(data, rules[rules_[i]], true);
+			}
+
+			else if(matches[3] === undefined){ // Equal to
+				if(data[matches[1]] != rules[rules_[i]])
+					operationCondition = false; // When "not equal to"
+			}
+
+			else if(matches[3] === '!'){ // Not equal to
+				if(data[matches[1]] == rules[rules_[i]])
+					operationCondition = false; // When "equal to"
+			}
+
+			else if(matches[3] === '>'){ // Greater than
 				if(data[matches[1]] <= rules[rules_[i]])
 					operationCondition = false; // When "lower or equal to"
 			}
@@ -49,26 +69,6 @@ function IDBQueryBuilder(){
 			else if(matches[3] === '<=>'){ // Not between than 2  value
 				if(data[matches[1]] > rules[rules_[i]][0] || data[matches[1]] < rules[rules_[i]][1])
 					operationCondition = false; // When "between 2 value"
-			}
-
-			// Recurse again
-			else if(matches[1] === 'AND'){
-				operationCondition = IDBWhere(data, rules[rules_[i]], false);
-			}
-
-			// Recurse again
-			else if(matches[1] === 'OR'){
-				operationCondition = IDBWhere(data, rules[rules_[i]], true);
-			}
-
-			else if(operation.length === 1){ // Equal to
-				if(data[matches[1]] != rules[rules_[i]])
-					operationCondition = false; // When "not equal to"
-			}
-
-			else if(matches[3] === '!'){ // Not equal to
-				if(data[matches[1]] == rules[rules_[i]])
-					operationCondition = false; // When "equal to"
 			}
 
 			else if(matches[3].indexOf('~') !== -1){ // Data likes
@@ -111,7 +111,7 @@ function IDBQueryBuilder(){
 			}
 
 			if(ORCondition){ // OR
-				currentCondition = currentCondition||operationCondition;
+				currentCondition = currentCondition || operationCondition;
 			}
 
 			else if(!operationCondition){ // AND
@@ -125,7 +125,7 @@ function IDBQueryBuilder(){
 	// The data order need more performance optimization
 	var IDBDataOrder = function(ref, rules_, checkOnly){
 		if(checkOnly){
-			if(rules_['ORDER']||rules_['LIMIT'])
+			if(rules_['ORDER'] || rules_['LIMIT'])
 				return true;
 			return false;
 		}
@@ -156,22 +156,30 @@ function IDBQueryBuilder(){
 			}
 	}
 
+	var regexEscape = /[-\/\\^$*+?.()|[\]{}]/g;
+	var validateText = function(text){
+		if(typeof text !== 'string') return text;
+		var matches = text.match(/[a-zA-Z0-9_\.]+/);
+		return matches[0]||'';
+	}
+
 	/*
 		columns
 		{columnName:(
 			text, number
 		)}
 	*/
-	scope.createTableRetry = false;
-	scope.createTable = function(tableName, columns, successCallback, errorCallback)
-	{
+	scope.createTable = function(tableName, columns, successCallback, errorCallback){
+		if(scope.db.objectStoreNames.contains(tableName))
+			return successCallback(scope);
+
 		var columns_ = Object.keys(columns);
 		try{
 			var objectStore = scope.db.createObjectStore(tableName, {keyPath:'rowid', autoIncrement:true});
 			for(var i = 0; i < columns_.length; i++){
 				var col = validateText(columns_[i]);
-				if(columns[columns_[i]].constructor.name == 'Array'&&columns[columns_[i]].length>=2){
-					objectStore.createIndex(col, col, {unique: columns[columns_[i]][1]=='unique'});
+				if(columns[columns_[i]] instanceof Array && columns[columns_[i]].length >= 2){
+					objectStore.createIndex(col, col, {unique: columns[columns_[i]][1] === 'unique'});
 				}
 				else
 					objectStore.createIndex(col, col, {unique: false});

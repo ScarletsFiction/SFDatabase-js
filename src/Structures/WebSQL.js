@@ -13,10 +13,13 @@ function WebSQLStructure(initError){
 		scope.initialized = true;
 		scope.SQLQuery('select 1', [], function(data){
 			scope.initialized = false;
-			if(data.length) initFinish(scope);
+			if(data.length)
+				setTimeout(function(){
+			 		initFinish(scope);
+				}, 1);
 		}, function(){
 			scope.initialized = false;
-			errorCallback();
+			if(errorCallback) errorCallback();
 		});
 	}
 
@@ -69,28 +72,18 @@ function WebSQLStructure(initError){
 		});
 	}
 
-	function initializeTable(){
-		if(options.websql){ // WebSQL
-			if(window.sqlitePlugin){
-				scope.db = window.sqlitePlugin.openDatabase({name: databaseName, location: 'default'});
-
-				// Initialize sqlitePlugin
-				databaseTest(function(error){
-					console.error("Failed to initialize sqlitePlugin");
-					window.sqlitePlugin = false;
-					if(initError) initError();
-				});
-			}
-			else if(window.openDatabase){
-				scope.db = window.openDatabase(databaseName, "1.0", databaseName, 1024);
-				databaseTest(function(error){
-					console.error("Failed to initialize WebSQL");
-					window.openDatabase = false;
-					options.websql = false;
-					if(initError) initError();
-				});
-			}
-			else if(initError) initError();
+	function initializeTable(disablePlugin){
+		if(!disablePlugin && window.sqlitePlugin){
+			scope.db = window.sqlitePlugin.openDatabase({name: scope.databaseName, location: 'default'}, checkStructure, function(){
+				console.error_("Failed to initialize sqlitePlugin");
+				setTimeout(function(){
+					scope.initializeTable(true);
+				}, 500);
+			});
+		}
+		else if(window.openDatabase){
+			scope.db = window.openDatabase(scope.databaseName, "1.0", scope.databaseName, 1024);
+			if(scope.db) setTimeout(checkStructure, 500);
 		}
 		else{
 			console.error('WebSQL is not supported on this browser');

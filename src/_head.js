@@ -21,8 +21,13 @@ function SFDatabase(databaseName, options, onConnected){
 		if(scope.initialized) return;
 		scope.initialized = true;
 
-		var async = onConnected ? onConnected(resumePending) : false;
-		if(!async) resumePending();
+		if(onConnected){
+			setTimeout(function(){
+				if(!onConnected(resumePending))
+					resumePending();
+			}, 1);
+		}
+		else resumePending();
 	}
 
 	var pendingTimer = -1;
@@ -67,11 +72,31 @@ function SFDatabase(databaseName, options, onConnected){
 		return found;
 	}
 
-	// The code below could be similar with PHP version
-	scope.validateText = function(text){
-		var matches = text.match(/[a-zA-Z0-9_\.]+/i);
-		return '`'+matches[0]+'`';
-	}
-
 	var isNode = typeof process !== 'undefined' && process.execPath;
+	if(!isNode){
+		var onStructureInitialize = null;
+		var checkStructure = function(){
+			var table = Object.keys(options.databaseStructure);
+
+			var queued = table.length;
+			var reduceQueue = function(){
+				queued--;
+				if(queued === 0) initFinish(scope);
+			};
+
+			setTimeout(function(){
+				if(queued > 1)
+					console.error("Failed to initialize database structure");
+			}, 5000);
+
+			for (var i = 0; i < table.length; i++) {
+				scope.createTable(table[i], options.databaseStructure[table[i]], reduceQueue);
+			}
+
+			if(onStructureInitialize){
+				onStructureInitialize();
+				onStructureInitialize = null;
+			}
+		}
+	}
 	// Load all query builder from here

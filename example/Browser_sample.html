@@ -62,25 +62,28 @@ myDatabase.drop("test", console.warn);
 	};
 
 	var options = {
+		websql:false,
 		debug:function(query, data){
 			console.log("Query: "+query, data);
 		}
-	}; //{host:'localhost', user:'root', password:''};
-	var myDatabase = new SFDatabase('YourDatabaseName', options, function(resumePending){
-		// Wait until the class reference saved to myDatabase variable
-		setTimeout(function(){
-		    console.log('Database Initialized!');
-		    myDatabase.preprocessTable = preprocessTable;
+	};
 
-			// Make sure the database already created (if exist, creation process will be skipped)
-			myDatabase.createTable('test', {id:'number', name:'text', data:'text', words:'text'}, function(){
-				resumePending(); // Continue pending SQL query
-				queryTest();
-			}, console.error);
-		}, 1);
+	// Make sure you define the database structure for initialization on the browser
+	// The table will automatically created
+	options.databaseStructure = {
+		test:{
+			id:['number', 'unique'],
+			name:'text',
+			data:'text',
+			words:'text'
+		}
+	};
 
-		return true; // Pause pending SQL query
+	var myDatabase = new SFDatabase('yourDatabaseName', options, function(){
+		console.log('Database Initialized!');
+		queryTest();
 	});
+	myDatabase.preprocessTable = preprocessTable;
 
 	function queryTest(){
 		myDatabase.insert("test", {id:1, name:"abc", words:'hey all'}, function(){

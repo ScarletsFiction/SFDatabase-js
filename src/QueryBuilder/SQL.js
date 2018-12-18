@@ -1,6 +1,11 @@
 function SQLQueryBuilder(){
 	// structure must have `scope.SQLQuery`
 
+	function validateText(text){
+		var matches = text.match(/[a-zA-Z0-9_\.]+/i);
+		return '`'+matches[0]+'`';
+	}
+
 	//{('AND', 'OR'), 'ORDER':{columnName:'ASC', 'DESC'}, 'LIMIT':[startIndex, rowsLimit]}
 
 	// ex: ["AND"=>["id"=>12, "OR"=>["name#1"=>"myself", "name"=>"himself"]], "LIMIT"=>1]
@@ -131,7 +136,7 @@ function SQLQueryBuilder(){
 			for(var i = 0; i < columns.length; i++){
 				var order = object['ORDER'][columns[i]].toUpperCase();
 				if(order !== 'ASC' && order !== 'DESC') continue;
-				stack.push(scope.validateText(columns[i]) + ' ' + order);
+				stack.push(validateText(columns[i]) + ' ' + order);
 			}
 			options = options + ' ORDER BY ' + stack.join(', ');
 		}
@@ -159,11 +164,11 @@ function SQLQueryBuilder(){
 		var columns_ = Object.keys(columns);
 		for(var i = 0; i < columns_.length; i++){
 			if(columns[columns_[i]].constructor.name === 'Array')
-				columns_[i] = scope.validateText(columns_[i])+' '+columns[columns_[i]][0].toUpperCase()+' '+scope.validateText(columns[columns_[i]][1]);
+				columns_[i] = validateText(columns_[i])+' '+columns[columns_[i]][0].toUpperCase()+' '+validateText(columns[columns_[i]][1]);
 			else
-				columns_[i] = scope.validateText(columns_[i])+' '+String(columns[columns_[i]]).toUpperCase();
+				columns_[i] = validateText(columns_[i])+' '+String(columns[columns_[i]]).toUpperCase();
 		}
-		var query = 'CREATE TABLE IF NOT EXISTS '+scope.validateText(tableName)+' ('+columns_.join(', ')+')';
+		var query = 'CREATE TABLE IF NOT EXISTS '+validateText(tableName)+' ('+columns_.join(', ')+')';
 
 		scope.SQLQuery(query, [], successCallback, errorCallback);
 	}
@@ -173,12 +178,12 @@ function SQLQueryBuilder(){
 		var select_ = select;
 		if(select!=='*')
 			for(var i = 0; i < select_.length; i++){
-				select_[i] = scope.validateText(select_[i]);
+				select_[i] = validateText(select_[i]);
 			}
 		else select_ = false;
 		
 		var wheres = scope.makeWhere(where);
-		var query = "SELECT " + (select_?select_.join(', '):select) + " FROM " + scope.validateText(tableName) + wheres[0];
+		var query = "SELECT " + (select_?select_.join(', '):select) + " FROM " + validateText(tableName) + wheres[0];
 
 		scope.SQLQuery(query, wheres[1], function(data){
 			if(!successCallback) return;
@@ -194,11 +199,11 @@ function SQLQueryBuilder(){
 	scope.delete = function(tableName, where, successCallback, errorCallback){
 		if(where){
 			var wheres = scope.makeWhere(where);
-			var query = "DELETE FROM " + scope.validateText(tableName) + wheres[0];
+			var query = "DELETE FROM " + validateText(tableName) + wheres[0];
 			scope.SQLQuery(query, wheres[1], successCallback, errorCallback);
 		}
 		else{
-			var query = "TRUNCATE TABLE " + scope.validateText(tableName);
+			var query = "TRUNCATE TABLE " + validateText(tableName);
 			scope.SQLQuery(query, [], successCallback, function(msg){
 				if(msg.indexOf('syntax error')!==-1) // WebSQL may not support truncate function
 					scope.delete(tableName, [], successCallback, errorCallback);
@@ -214,12 +219,12 @@ function SQLQueryBuilder(){
 		var columns = Object.keys(object_);
 		preprocessData(tableName, 'set', object_);
 		for(var i = 0; i < columns.length; i++){
-			objectName.push(scope.validateText(columns[i]));
+			objectName.push(validateText(columns[i]));
 			objectName_.push('?');
 
 			objectData.push(object_[columns[i]]);
 		}
-		var query = "INSERT INTO " + scope.validateText(tableName) + " (" + objectName.join(', ') + ") VALUES (" + objectName_.join(', ') + ")";
+		var query = "INSERT INTO " + validateText(tableName) + " (" + objectName.join(', ') + ") VALUES (" + objectName_.join(', ') + ")";
 		
 		scope.SQLQuery(query, objectData, successCallback, errorCallback);
 	}
@@ -232,15 +237,15 @@ function SQLQueryBuilder(){
 		var columns = Object.keys(object_);
 		preprocessData(tableName, 'set', object_);
 		for(var i = 0; i < columns.length; i++){
-			objectName.push(scope.validateText(columns[i])+' = ?');
+			objectName.push(validateText(columns[i])+' = ?');
 			objectData.push(object_[columns[i]]);
 		}
-		var query = "UPDATE " + scope.validateText(tableName) + " SET " + objectName.join(', ') + wheres[0];
+		var query = "UPDATE " + validateText(tableName) + " SET " + objectName.join(', ') + wheres[0];
 		scope.SQLQuery(query, objectData.concat(wheres[1]), successCallback, errorCallback);
 	}
 
 	scope.drop = function(tableName, successCallback, errorCallback){
-		scope.SQLQuery("DROP TABLE "+scope.validateText(tableName), [], successCallback, errorCallback);
+		scope.SQLQuery("DROP TABLE "+validateText(tableName), [], successCallback, errorCallback);
 	}
 
 	scope.closeDatabase = function(){
