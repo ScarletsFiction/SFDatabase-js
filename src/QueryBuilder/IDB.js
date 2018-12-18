@@ -307,7 +307,10 @@ function IDBQueryBuilder(){
       						cursor.delete(); // Delete data
       				}
 
-      				else cursor.delete();
+      				else {
+      					query.processed++;
+      					cursor.delete();
+      				}
       			}
 		    	cursor.continue();
 		    }
@@ -346,7 +349,10 @@ function IDBQueryBuilder(){
       						operation(cursor, value); // Update data
       				}
 
-      				else operation(cursor, value);
+      				else {
+      					query.processed++;
+      					operation(cursor, value);
+      				}
       			}
 		    	cursor.continue();
 		    }
