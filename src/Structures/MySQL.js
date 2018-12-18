@@ -19,15 +19,6 @@ function MySQLStructure(initError){
 		console.log("Connecting to "+databaseName+" database");
 
 	scope.SQLQuery = function(query, values, successCallback, errorCallback){
-		if(!scope.initialized){
-			scope.pending.push(function(){
-				scope.SQLQuery(query, values, successCallback, errorCallback)
-			});
-			clearTimeout(pendingTimer);
-			pendingTimer = setTimeout(resumePending, 1000);
-			return;
-		}
-
 		if(options.debug) options.debug(query, values);
 
 		scope.db.getConnection(function(err1, connection){

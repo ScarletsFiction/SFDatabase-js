@@ -2,6 +2,7 @@ if(!isNode && options.websql === undefined) options.websql = true;
 if(options.websql){
 	WebSQLStructure(function(){
 		// Fallback to IndexedDB
+		console.warn("Fallback to IndexedDB");
 		IDBStructure();
 	});
 }
@@ -9,30 +10,7 @@ if(options.websql){
 function WebSQLStructure(initError){
 	SQLQueryBuilder();
 
-	var databaseTest = function(errorCallback){
-		scope.initialized = true;
-		scope.SQLQuery('select 1', [], function(data){
-			scope.initialized = false;
-			if(data.length)
-				setTimeout(function(){
-			 		initFinish(scope);
-				}, 1);
-		}, function(){
-			scope.initialized = false;
-			if(errorCallback) errorCallback();
-		});
-	}
-
 	scope.SQLQuery = function(query, values, successCallback, errorCallback){
-		if(!scope.initialized){
-			scope.pending.push(function(){
-				scope.SQLQuery(query, values, successCallback, errorCallback)
-			});
-			clearTimeout(pendingTimer);
-			pendingTimer = setTimeout(resumePending, 1000);
-			return;
-		}
-
 		if(options.debug) options.debug(query, values);
 
 		scope.db.transaction(function(tx){
@@ -74,15 +52,15 @@ function WebSQLStructure(initError){
 
 	function initializeTable(disablePlugin){
 		if(!disablePlugin && window.sqlitePlugin){
-			scope.db = window.sqlitePlugin.openDatabase({name: scope.databaseName, location: 'default'}, checkStructure, function(){
+			scope.db = window.sqlitePlugin.openDatabase({name: databaseName, location: 'default'}, checkStructure, function(){
 				console.error_("Failed to initialize sqlitePlugin");
 				setTimeout(function(){
-					scope.initializeTable(true);
+					initializeTable(true);
 				}, 500);
 			});
 		}
 		else if(window.openDatabase){
-			scope.db = window.openDatabase(scope.databaseName, "1.0", scope.databaseName, 1024);
+			scope.db = window.openDatabase(databaseName, "1.0", databaseName, 1024);
 			if(scope.db) setTimeout(checkStructure, 500);
 		}
 		else{
