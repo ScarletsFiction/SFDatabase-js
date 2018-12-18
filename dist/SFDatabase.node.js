@@ -1,3 +1,116 @@
+/*
+  SFDatabase-js
+  SFDatabase-js is a database library that can help you
+  build a SQL Query and execute it to the server from
+  Nodejs or local browser with WebSQL.
+
+  https://github.com/ScarletsFiction/SFDatabase-js
+*/
+/*
+	ScarletsFiction Database Library
+	A simple database library for browser and nodejs
+	https://github.com/ScarletsFiction/SFDatabase-js
+	
+	Make sure you include this header on this script
+*/
+
+'use strict';
+
+// Ext-AlaSQL.js are required for browser only if the browser didn't support WebSQL
+function SFDatabase(databaseName, options, onConnected){
+	var scope = this;
+	scope.db = null;
+	scope.pending = [];
+	scope.initialized = false;
+	if(!options)
+		options = {debug:false};
+
+	var initFinish = function(){
+		if(scope.initialized) return;
+		scope.initialized = true;
+
+		if(onConnected){
+			setTimeout(function(){
+				if(!onConnected(resumePending))
+					resumePending();
+			}, 1);
+		}
+		else resumePending();
+	}
+
+	var pendingTimer = -1;
+	var resumePending = function(){
+		if(!scope.db){
+			clearTimeout(pendingTimer);
+			pendingTimer = setTimeout(resumePending, 1000);
+			return;
+		}
+		if(!scope.pending.length) return;
+		for (var i = 0; i < scope.pending.length; i++) {
+			scope.pending[i]();
+		}
+		scope.pending.splice(0);
+	}
+
+	var destroyObject = function(obj){
+		if(!obj || typeof obj !== 'object') return;
+		if(obj instanceof Array)
+			obj.splice(0);
+		else {
+			var objKeys = Object.keys(obj);
+			for (var i = 0; i < objKeys.length; i++) {
+				delete obj[objKeys[i]];
+			}
+		}
+		obj = null;
+	}
+
+	scope.preprocessTable = {}; // {tableName:{columnName:{set:function, get:function}}}}
+	var preprocessData = function(tableName, mode, object){
+		var found = false;
+		if(!scope.preprocessTable[tableName]) return found;
+
+		var keys = Object.keys(scope.preprocessTable[tableName]);
+		for (var i = 0; i < keys.length; i++) {
+			if(!object[keys[i]] || !scope.preprocessTable[tableName][keys[i]][mode])
+				continue;
+			object[keys[i]] = scope.preprocessTable[tableName][keys[i]][mode](object[keys[i]]);
+			found = true;
+		}
+		return found;
+	}
+
+	var isNode = typeof process !== 'undefined' && process.execPath;
+	if(!isNode){
+		var onStructureInitialize = null;
+		var checkStructure = function(callback){
+			var table = Object.keys(options.databaseStructure);
+
+			var queued = table.length;
+			var reduceQueue = function(){
+				queued--;
+				if(queued === 0){
+					if(!callback) initFinish(scope);
+					else callback();
+				}
+			};
+
+			setTimeout(function(){
+				if(queued > 1)
+					console.error("Failed to initialize database structure");
+			}, 5000);
+
+			for (var i = 0; i < table.length; i++) {
+				scope.createTable(table[i], options.databaseStructure[table[i]], reduceQueue);
+			}
+
+			if(onStructureInitialize){
+				onStructureInitialize();
+				onStructureInitialize = null;
+			}
+		}
+	}
+	// Load all query builder from here
 function SQLQueryBuilder(){
 	// structure must have `scope.SQLQuery`
 
@@ -259,3 +372,56 @@ function SQLQueryBuilder(){
 		});
 	}
 }
+if(options.mysql) MySQLStructure();
+
+function MySQLStructure(initError){
+	SQLQueryBuilder();
+
+	var mysql = require('mysql');
+	scope.db = mysql.createPool({
+		host:options.host?options.host:'localhost',
+		user:options.user?options.user:'root',
+		password:options.password?options.password:'',
+		database:databaseName
+	});
+
+	if(onConnected) scope.db.on('connection', initFinish);
+	if(!options.hideInitialization)
+		console.log("Connecting to "+databaseName+" database");
+
+	scope.SQLQuery = function(query, values, successCallback, errorCallback){
+		if(options.debug) options.debug(query, values);
+
+		scope.db.getConnection(function(err1, connection){
+	        if(err1){
+	            connection.release();
+	            (errorCallback || console.error)(err1);
+	            return;
+	        }
+
+	        connection.query(query, values, function(err, rows){
+	            connection.release();
+	            destroyObject(values);
+	            values = null;
+	            query = null;
+
+	            if(!err && successCallback) setTimeout(function(){
+	            	successCallback(rows);
+	            }, 0);
+	            else if(err) setTimeout(function(){
+	            	var error = {msg:err.sqlMessage, query:err.sql, code:err.code};
+	            	(errorCallback || console.error)(error);
+	            }, 0);
+	        });
+	    });
+	}
+
+	// Test connection
+	scope.SQLQuery('select 1', []);
+}
+}
+
+// isNode
+if(typeof process !== 'undefined' && process.execPath)
+	module.exports = SFDatabase;
+//# sourceMappingURL=SFDatabase.node.js.map

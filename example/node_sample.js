@@ -1,31 +1,25 @@
 // `select`, `insert`, etc is similar with the browser version
-var SFDatabase = require("./ScarletsFiction-Database.js");
+var SFDatabase = require("./../dist/SFDatabase.node.js");
 
-var MySQLCredentials = {host:'localhost', user:'root', password:''};
-var myDatabase = new SFDatabase('YourDatabaseName', MySQLCredentials, function(){
-	setTimeout(function(){ // Wait until the class reference saved to myDatabase variable
-	    if(myDatabase){
-	        console.log('Connected!');
+var MySQLCredentials = {mysql:true, host:'localhost', user:'root', password:''};
+var myDB = new SFDatabase('yourDatabaseName', MySQLCredentials, function(){
+	console.log('Connected!');
 
-		    // Make sure the database already created (if exist, creation process will be skipped)
-	        myDatabase.createTable('test', {'id':'number', 'name':'text'}, function(){
-				databaseInitialized();
-	        }, console.error);
-	    } else {
-	        console.log('Database Error!');
-	    }
-	}, 1);
+	// Make sure the database already created (if exist, creation process will be skipped)
+	myDB.createTable('test', {'id':['int', 'primary key'], 'name':'text'}, function(){
+		databaseInitialized();
+	}, console.error);
 });
 
 function databaseInitialized(){
     console.log('Lets do something!');
 
-	myDatabase.insert("test", {id:1, name:"abc"}, function(){
-	    myDatabase.update("test", {'name':'zxc'}, {id:1}, function(rows){
-		    myDatabase.select("test", ['name'], {id:1}, function(rows){
+	myDB.insert("test", {id:1, name:"abc"}, function(){
+	    myDB.update("test", {'name':'zxc'}, {id:1}, function(rows){
+		    myDB.select("test", ['name'], {id:1}, function(rows){
 		        console.log("Result:", rows);
 
-		        myDatabase.delete("test", {id:1}, function(){
+		        myDB.delete("test", {id:1}, function(){
 		        	console.log("Data with id 1 was deleted");
 		        }, console.error);
 		    }, console.error);

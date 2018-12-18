@@ -1,7 +1,4 @@
-if(isNode && options.mysql === undefined) options.mysql = true;
-if(options.mysql){
-	MySQLStructure();
-}
+if(options.mysql) MySQLStructure();
 
 function MySQLStructure(initError){
 	SQLQueryBuilder();
@@ -24,8 +21,7 @@ function MySQLStructure(initError){
 		scope.db.getConnection(function(err1, connection){
 	        if(err1){
 	            connection.release();
-	            if(errorCallback) errorCallback(err1);
-	            else console.error(err1);
+	            (errorCallback || console.error)(err1);
 	            return;
 	        }
 
@@ -35,15 +31,17 @@ function MySQLStructure(initError){
 	            values = null;
 	            query = null;
 
-	            if(!err&&successCallback) setTimeout(function(){
+	            if(!err && successCallback) setTimeout(function(){
 	            	successCallback(rows);
 	            }, 0);
 	            else if(err) setTimeout(function(){
 	            	var error = {msg:err.sqlMessage, query:err.sql, code:err.code};
-		            if(errorCallback) errorCallback(error);
-		            else console.error(error);
+	            	(errorCallback || console.error)(error);
 	            }, 0);
 	        });
 	    });
 	}
+
+	// Test connection
+	scope.SQLQuery('select 1', []);
 }
