@@ -91,9 +91,9 @@ myDB.drop("test", console.warn);
 			    myDB.select("test", ['name', 'data'], {OR:{id:321, 'words[~]':'hey'}, LIMIT:1}, function(rows){
 			        console.log("Result:", rows[0]);
 
-			        // myDB.delete("test", {'name[~]':"%xc"}, function(affected){
-			        	// console.log(affected+" data was deleted");
-			        // }, console.error);
+			        myDB.delete("test", {'name[~]':"%xc"}, function(affected){
+			        	console.log(affected+" data was deleted");
+			        }, console.error);
 			    }, console.error);
 		    }, console.error);
 		}, console.error);

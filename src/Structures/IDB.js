@@ -1,6 +1,7 @@
 if(!isNode && !options.websql){
 	IDBStructure(function(){
-		// Fallback to IndexedDB
+		// Fallback to WebSQL
+		console.warn("Fallback to WebSQL");
 		WebSQLStructure();
 	});
 }
@@ -16,7 +17,7 @@ function IDBStructure(initError){
 		window.IDBKeyRange = window.webkitIDBKeyRange || window.msIDBKeyRange;
 
 	if(!window.indexedDB || !window.IDBTransaction || !window.IDBKeyRange){
-		initError();
+		if(initError) initError();
 		return;
 	}
 

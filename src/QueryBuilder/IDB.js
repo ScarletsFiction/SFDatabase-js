@@ -230,16 +230,16 @@ function IDBQueryBuilder(){
 	scope.insert = function(tableName, object, successCallback, errorCallback){
 		var duplicated = false;
   		var objectStore = scope.getObjectStore(tableName, "readwrite", function(){
-  			if(!duplicated && errorCallback)
-  				errorCallback('table not found');
+  			if(!duplicated)
+  				(errorCallback || console.error)('table not found');
   		});
   		var objectStoreRequest = objectStore.add(object);
 
-  		if(errorCallback)
-	  		objectStoreRequest.onerror = function(){
-	  			duplicated = true;
-	  			errorCallback('duplicate on unique columns');
-	  		};
+	  	objectStoreRequest.onerror = function(){
+	  		duplicated = true;
+	  		(errorCallback || console.error)('duplicate on unique columns');
+	  	};
+
   		if(successCallback)
 	  		objectStoreRequest.onsuccess = function(ev){
 	  			successCallback(ev.target.result);
@@ -320,7 +320,7 @@ function IDBQueryBuilder(){
 	scope.update = function(tableName, object, where, successCallback, errorCallback){
   		var objectStore = scope.getObjectStore(tableName, "readwrite", errorCallback);
   		var query = prepareQuery(objectStore, where);
-		openCursor.onerror = errorCallback;
+		query.cursor.onerror = errorCallback;
 
 		var columns = Object.keys(object);
 		var operation = function(cursor, value){
@@ -330,7 +330,7 @@ function IDBQueryBuilder(){
       		cursor.update(value);
 		}
 
-		openCursor.onsuccess = function(event){
+		query.cursor.onsuccess = function(event){
       		var cursor = event.target.result;
         	if(cursor){
       			var value = cursor.value;
