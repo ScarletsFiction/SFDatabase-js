@@ -147,7 +147,7 @@ function IDBQueryBuilder(){
 		query.found++;
 		query.processed++;
 
-		if(query.found >= query.startFrom){
+		if(query.found > query.startFrom){
 			if(query.processed <= query.limit)
 				return 1; // Continue
 			else
@@ -195,7 +195,7 @@ function IDBQueryBuilder(){
 
 		delete where.LIMIT;
 		delete where.ORDER;
-		
+
 		return obj;
 	}
 
@@ -269,7 +269,6 @@ function IDBQueryBuilder(){
       					var code = IDBLimit(query);
 
       					if(code === -1){
-      						operation(value); // Get last data
       						successCallback(query.result);
       						return;
       					}
@@ -301,7 +300,6 @@ function IDBQueryBuilder(){
       					var code = IDBLimit(query);
       					
       					if(code === -1){
-      						cursor.delete(); // Delete last data
       						successCallback(query.processed);
       						return;
       					}
@@ -341,7 +339,6 @@ function IDBQueryBuilder(){
       					var code = IDBLimit(query);
       					
       					if(code === -1){
-      						operation(cursor, value); // Update last data
       						successCallback(query.processed);
       						return;
       					}
