@@ -22,7 +22,7 @@ function IDBStructure(initError){
 	}
 
 	scope.storage = 'indexeddb';
-	scope.db = window.indexedDB.open(databaseName, 1);
+	scope.db = window.indexedDB.open(databaseName, options.idbVersion || 1);
 	scope.db.onerror = initError;
 
 	scope.db.onupgradeneeded = scope.db.versionchange = function(ev){

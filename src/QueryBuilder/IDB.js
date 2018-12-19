@@ -206,8 +206,10 @@ function IDBQueryBuilder(){
 		)}
 	*/
 	scope.createTable = function(tableName, columns, successCallback, errorCallback){
-		if(scope.db.objectStoreNames.contains(tableName))
-			return successCallback(scope);
+		if(scope.db.objectStoreNames.contains(tableName)){
+			if(successCallback) successCallback(scope);
+			return;
+		}
 
 		var columns_ = Object.keys(columns);
 		try{
@@ -246,6 +248,31 @@ function IDBQueryBuilder(){
 	  		};
 	}
 
+	scope.get = function(tableName, select, where, successCallback, errorCallback){
+  		var objectStore = scope.getObjectStore(tableName, "readonly", errorCallback);
+  		var query = prepareQuery(objectStore, where);
+		query.cursor.onerror = errorCallback;
+
+		query.cursor.onsuccess = function(event){
+      		var cursor = event.target.result;
+        	if(cursor){
+      			var value = cursor.value;
+      			if(IDBWhere(value, where)){
+		      		var temp = {};
+		      		for (var i = 0; i < select.length; i++) {
+		      			temp[select[i]] = value[select[i]];
+		      		}
+		      		successCallback(temp);
+		      		return;
+      			}
+		    	cursor.continue();
+		    }
+
+		    // End of rows
+		    else if(successCallback) successCallback({});
+		};
+	}
+
 	scope.select = function(tableName, select, where, successCallback, errorCallback){
   		var objectStore = scope.getObjectStore(tableName, "readonly", errorCallback);
   		var query = prepareQuery(objectStore, where);
@@ -269,7 +296,7 @@ function IDBQueryBuilder(){
       					var code = IDBLimit(query);
 
       					if(code === -1){
-      						successCallback(query.result);
+      						if(successCallback) successCallback(query.result);
       						return;
       					}
       					else if(code === 1)
@@ -282,7 +309,7 @@ function IDBQueryBuilder(){
 		    }
 
 		    // End of rows
-		    else successCallback(query.result);
+		    else if(successCallback) successCallback(query.result);
 		};
 	}
 
@@ -300,7 +327,7 @@ function IDBQueryBuilder(){
       					var code = IDBLimit(query);
       					
       					if(code === -1){
-      						successCallback(query.processed);
+      						if(successCallback) successCallback(query.processed);
       						return;
       					}
       					else if(code === 1)
@@ -316,7 +343,7 @@ function IDBQueryBuilder(){
 		    }
 
 		    // End of rows
-		    else successCallback(query.processed);
+		    else if(successCallback) successCallback(query.processed);
 		};
 	}
 
@@ -342,7 +369,7 @@ function IDBQueryBuilder(){
       					var code = IDBLimit(query);
       					
       					if(code === -1){
-      						successCallback(query.processed);
+      						if(successCallback) successCallback(query.processed);
       						return;
       					}
       					else if(code === 1)
@@ -358,7 +385,7 @@ function IDBQueryBuilder(){
 		    }
 
 		    // End of rows
-		    else successCallback(query.processed);
+		    else if(successCallback) successCallback(query.processed);
 		};
 	}
 
