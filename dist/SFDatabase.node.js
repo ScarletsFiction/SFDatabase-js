@@ -309,6 +309,11 @@ function SQLQueryBuilder(){
 		}, errorCallback);
 	}
 
+	scope.get = function(tableName, select, where, successCallback, errorCallback){
+		where.LIMIT = 1;
+		return scope.select(tableName, select, where, successCallback, errorCallback); 
+	}
+
 	scope.delete = function(tableName, where, successCallback, errorCallback){
 		if(where){
 			var wheres = scope.makeWhere(where);
