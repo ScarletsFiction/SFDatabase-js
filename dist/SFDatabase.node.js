@@ -422,7 +422,9 @@ function MySQLStructure(initError){
 	}
 
 	// Test connection
-	scope.SQLQuery('select 1', []);
+	setTimeout(function(){
+		scope.SQLQuery('select 1', []);
+	}, 1000);
 }
 }
 

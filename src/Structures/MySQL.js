@@ -20,7 +20,6 @@ function MySQLStructure(initError){
 
 		scope.db.getConnection(function(err1, connection){
 	        if(err1){
-	            connection.release();
 	            (errorCallback || console.error)(err1);
 	            return;
 	        }
@@ -34,6 +33,7 @@ function MySQLStructure(initError){
 	            if(!err && successCallback) setTimeout(function(){
 	            	successCallback(rows);
 	            }, 0);
+	            
 	            else if(err) setTimeout(function(){
 	            	var error = {msg:err.sqlMessage, query:err.sql, code:err.code};
 	            	(errorCallback || console.error)(error);
@@ -43,5 +43,7 @@ function MySQLStructure(initError){
 	}
 
 	// Test connection
-	scope.SQLQuery('select 1', []);
+	setTimeout(function(){
+		scope.SQLQuery('select 1', []);
+	}, 1000);
 }
