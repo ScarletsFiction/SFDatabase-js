@@ -176,18 +176,23 @@ function SQLQueryBuilder(){
 	//Select separated by comma
 	scope.select = function(tableName, select, where, successCallback, errorCallback){
 		var select_ = select;
-		if(select!=='*')
+		
+		if(select !== '*'){
+			if(select.constructor === String)
+				select_ = [select];
+
 			for(var i = 0; i < select_.length; i++){
 				select_[i] = validateText(select_[i]);
 			}
+		}
 		else select_ = false;
 		
 		var wheres = scope.makeWhere(where);
 		var query = "SELECT " + (select_?select_.join(', '):select) + " FROM " + validateText(tableName) + wheres[0];
 
 		scope.SQLQuery(query, wheres[1], function(data){
-			if(!successCallback) return;
-			if(data.length!==0 && preprocessData(tableName, 'get', data[0])){
+			if(successCallback === void 0) return;
+			if(data.length !== 0 && preprocessData(tableName, 'get', data[0])){
 				for (var i = 1; i < data.length; i++) {
 					preprocessData(tableName, 'get', data[i]);
 				}
@@ -198,7 +203,13 @@ function SQLQueryBuilder(){
 
 	scope.get = function(tableName, select, where, successCallback, errorCallback){
 		where.LIMIT = 1;
-		return scope.select(tableName, select, where, successCallback, errorCallback); 
+		scope.select(tableName, select, where, function(rows){
+			if(rows.length === 0)
+				successCallback(null);
+			else if(select.constructor === Array)
+				successCallback(rows[0]);
+			else successCallback(rows[0][select]);
+		}, errorCallback);
 	}
 
 	scope.delete = function(tableName, where, successCallback, errorCallback){

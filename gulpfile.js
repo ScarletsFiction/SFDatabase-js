@@ -3,9 +3,7 @@ var concat = require('gulp-concat');
 var sourcemaps = require('gulp-sourcemaps');
 var browserSync = require('browser-sync');
 var reload = browserSync.reload;
-var csso = require('gulp-csso');
 var uglify = require('gulp-uglify-es').default;
-var autoprefixer = require('gulp-autoprefixer');
 var header = require('gulp-header');
 var babel = require('gulp-babel');
 
@@ -74,8 +72,7 @@ gulp.task('nodejs', function(){
 });
 
 gulp.task('watch', function() {
-  gulp.watch(browserjs, ['browserjs']);
-  gulp.watch(nodejs, ['nodejs']);
+  gulp.watch(browserjs, gulp.parallel(['browserjs', 'nodejs']));
 });
 
 gulp.task('serve', function() {
@@ -88,7 +85,7 @@ gulp.task('serve', function() {
   gulp.watch(['*.html', 'scripts/**/*.js'], {cwd: 'example'}, reload);
 });
 
-gulp.task('default', ['browserjs']);
+gulp.task('default', gulp.series(['browserjs']));
 
 function swallowError(error){
   console.log(error.message)

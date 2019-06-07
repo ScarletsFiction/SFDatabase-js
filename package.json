@@ -1,16 +1,17 @@
 {
   "name": "sfdatabase-js",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description":"SFDatabase-js is a database library that can help you build a SQL Query and execute it to the server from Nodejs or local browser with WebSQL. It will fallback to IndexedDB or LocalStorage for saving the database if running on browser.",
   "repository": {
     "type": "git",
     "url": "https://github.com/ScarletsFiction/SFDatabase-js.git"
   },
-  "author": "Stefanus Arya CG",
+  "author": "ScarletsFiction",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/ScarletsFiction/SFDatabase-js/issues"
   },
+  "main": "dist/SFDatabase.node.js",
   "browserslist": [
     "Android > 4",
     "IOS >= 7",
@@ -26,5 +27,6 @@
     "gulp-concat": "*",
     "gulp-sourcemaps": "*",
     "gulp-uglify-es": "*"
-  }
+  },
+  "keywords": ["mysql", "database", "client", "browser", "websql", "indexeddb"]
 }

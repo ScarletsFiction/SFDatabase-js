@@ -85,8 +85,8 @@ function IDBQueryBuilder(){
 				var regexed = [];
 				var rule_ = rule instanceof Array ? rule : [rule];
 
-				for (var i = 0; i < rule_.length; i++) {
-					var temp = rule_[i];
+				for (var a = 0; a < rule_.length; a++) {
+					var temp = rule_[a];
 					if(temp[0] === '%' && temp.slice(-1) === '%'){
 						likeCode = 1;
 						temp = temp.slice(1, -1);
@@ -258,10 +258,16 @@ function IDBQueryBuilder(){
         	if(cursor){
       			var value = cursor.value;
       			if(IDBWhere(value, where)){
+      				if(select.constructor === String){
+      					successCallback(value[select]);
+      					return;
+      				}
+
 		      		var temp = {};
 		      		for (var i = 0; i < select.length; i++) {
 		      			temp[select[i]] = value[select[i]];
 		      		}
+
 		      		successCallback(temp);
 		      		return;
       			}
@@ -269,7 +275,7 @@ function IDBQueryBuilder(){
 		    }
 
 		    // End of rows
-		    else if(successCallback) successCallback({});
+		    else if(successCallback) successCallback(null);
 		};
 	}
 
