@@ -7,13 +7,17 @@
 */
 
 'use strict';
-
-// Ext-AlaSQL.js are required for browser only if the browser didn't support WebSQL
 function SFDatabase(databaseName, options, onConnected){
 	var scope = this;
 	scope.db = null;
 	scope.pending = [];
 	scope.initialized = false;
+	if(options.databaseStructure)
+		console.warn('`options.databaseStructure` is deprecated, please use `options.structure` instead.');
+
+	if(!options.structure)
+		options.structure = options.databaseStructure;
+
 	if(!options)
 		options = {debug:false};
 
@@ -76,7 +80,7 @@ function SFDatabase(databaseName, options, onConnected){
 	if(!isNode){
 		var onStructureInitialize = null;
 		var checkStructure = function(callback){
-			var table = Object.keys(options.databaseStructure);
+			var table = Object.keys(options.structure);
 
 			var queued = table.length;
 			var reduceQueue = function(){
@@ -89,11 +93,11 @@ function SFDatabase(databaseName, options, onConnected){
 
 			setTimeout(function(){
 				if(queued > 1)
-					console.error("Failed to initialize database structure");
+					console.error("Failed to initialize", queued, "database structure");
 			}, 5000);
 
 			for (var i = 0; i < table.length; i++) {
-				scope.createTable(table[i], options.databaseStructure[table[i]], reduceQueue);
+				scope.createTable(table[i], options.structure[table[i]], reduceQueue);
 			}
 
 			if(onStructureInitialize){
