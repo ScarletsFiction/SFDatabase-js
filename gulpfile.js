@@ -85,7 +85,7 @@ gulp.task('serve', function() {
   gulp.watch(['*.html', 'scripts/**/*.js'], {cwd: 'example'}, reload);
 });
 
-gulp.task('default', gulp.series(['browserjs']));
+gulp.task('default', gulp.parallel(['browserjs', 'nodejs']));
 
 function swallowError(error){
   console.log(error.message)

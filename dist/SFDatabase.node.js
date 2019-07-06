@@ -15,13 +15,17 @@
 */
 
 'use strict';
-
-// Ext-AlaSQL.js are required for browser only if the browser didn't support WebSQL
 function SFDatabase(databaseName, options, onConnected){
 	var scope = this;
 	scope.db = null;
 	scope.pending = [];
 	scope.initialized = false;
+	if(options.databaseStructure)
+		console.warn('`options.databaseStructure` is deprecated, please use `options.structure` instead.');
+
+	if(!options.structure)
+		options.structure = options.databaseStructure;
+
 	if(!options)
 		options = {debug:false};
 
@@ -84,7 +88,7 @@ function SFDatabase(databaseName, options, onConnected){
 	if(!isNode){
 		var onStructureInitialize = null;
 		var checkStructure = function(callback){
-			var table = Object.keys(options.databaseStructure);
+			var table = Object.keys(options.structure);
 
 			var queued = table.length;
 			var reduceQueue = function(){
@@ -97,11 +101,11 @@ function SFDatabase(databaseName, options, onConnected){
 
 			setTimeout(function(){
 				if(queued > 1)
-					console.error("Failed to initialize database structure");
+					console.error("Failed to initialize", queued, "database structure");
 			}, 5000);
 
 			for (var i = 0; i < table.length; i++) {
-				scope.createTable(table[i], options.databaseStructure[table[i]], reduceQueue);
+				scope.createTable(table[i], options.structure[table[i]], reduceQueue);
 			}
 
 			if(onStructureInitialize){
@@ -156,11 +160,11 @@ function SQLQueryBuilder(){
 				}
 				else if(matches[3] === '!')
 				{
-					var type = value===null || value===undefined ? false : value.constructor.name;
+					var type = value === null || value === undefined ? false : value.constructor;
 					if(!type)
 						wheres.push(matches[1] + ' IS NOT NULL');
 					else{
-						if(type==='Array'){
+						if(type === Array){
 							var temp = [];
 							for (var a = 0; a < value.length; a++) {
 								temp.push('?');
@@ -169,13 +173,13 @@ function SQLQueryBuilder(){
 							objectData = objectData.concat(value);
 						}
 
-						else if(type==='Number' || type==='Boolean' || type==='String'){
+						else if(type === Number || type === Boolean || type === String){
 							wheres.push(matches[1] + ' != ?');
 							objectData.push(value);
 						}
 
 						else
-							console.error('SQL where: value ' + matches[1] + ' with type ' + type + ' can\'t be accepted');
+							console.error('SQL where: value ' + matches[1] + ' with type ' + type.name + ' can\'t be accepted');
 					}
 				}
 				else if (matches[3] === '~' || matches[3] === '!~')
@@ -194,11 +198,11 @@ function SQLQueryBuilder(){
                     wheres.push('('+likes.join(' OR ')+')');
 				}
 			} else {
-				var type = value===null || value===undefined ? false : value.constructor.name;
+				var type = value === null || value === undefined ? false : value.constructor;
 				if(!type)
 					wheres.push(matches[1] + ' IS NULL');
 				else{
-					if(type==='Array'){
+					if(type === Array){
 						var temp = [];
 						for (var a = 0; a < value.length; a++) {
 							temp.push('?');
@@ -207,13 +211,13 @@ function SQLQueryBuilder(){
 						objectData = objectData.concat(value);
 					}
 
-					else if(type==='Number' || type==='Boolean' || type==='String'){
+					else if(type === Number || type === Boolean || type === String){
 						wheres.push(matches[1] + ' = ?');
 						objectData.push(value);
 					}
 
 					else
-						console.error('SQL where: value ' + matches[1] + ' with type ' + type + ' can\'t be accepted');
+						console.error('SQL where: value ' + matches[1] + ' with type ' + type.name + ' can\'t be accepted');
 				}
 			}
 		}
@@ -261,7 +265,7 @@ function SQLQueryBuilder(){
 				options = options + ' LIMIT '+ object['LIMIT'];
 			}
 		}
-		
+
 		var where_ = '';
 		if(wheres.length!==0){
 			if(!children)
@@ -272,11 +276,13 @@ function SQLQueryBuilder(){
 		return [where_ + options, objectData];
 	}
 
-	scope.createTable = function(tableName, columns, successCallback, errorCallback)
-	{
+	scope.createTable = function(tableName, columns, successCallback, errorCallback){
 		var columns_ = Object.keys(columns);
 		for(var i = 0; i < columns_.length; i++){
-			if(columns[columns_[i]].constructor.name === 'Array')
+			if(columns_[i][0] === '$')
+				columns_[i] = columns_[i].slice(1);
+
+			if(columns[columns_[i]].constructor === Array)
 				columns_[i] = validateText(columns_[i]) + ' ' + columns[columns_[i]].join(' ').toUpperCase();
 			else
 				columns_[i] = validateText(columns_[i]) + ' ' + String(columns[columns_[i]]).toUpperCase();
@@ -304,13 +310,24 @@ function SQLQueryBuilder(){
 		var query = "SELECT " + (select_?select_.join(', '):select) + " FROM " + validateText(tableName) + wheres[0];
 
 		scope.SQLQuery(query, wheres[1], function(data){
-			if(successCallback === void 0) return;
 			if(data.length !== 0 && preprocessData(tableName, 'get', data[0])){
 				for (var i = 1; i < data.length; i++) {
 					preprocessData(tableName, 'get', data[i]);
 				}
 			}
 			successCallback(data);
+		}, errorCallback);
+	}
+
+	scope.has = function(tableName, where, successCallback, errorCallback){
+		where.LIMIT = 1;
+		var wheres = scope.makeWhere(where);
+		var query = "SELECT 1 FROM " + validateText(tableName) + wheres[0];
+
+		scope.SQLQuery(query, wheres[1], function(data){
+			if(data.length !== 0)
+				return successCallback(true);
+			successCallback(false);
 		}, errorCallback);
 	}
 
@@ -334,7 +351,7 @@ function SQLQueryBuilder(){
 		else{
 			var query = "TRUNCATE TABLE " + validateText(tableName);
 			scope.SQLQuery(query, [], successCallback, function(msg){
-				if(msg.indexOf('syntax error')!==-1) // WebSQL may not support truncate function
+				if(msg.indexOf('syntax error') !== -1) // WebSQL may not support truncate function
 					scope.delete(tableName, [], successCallback, errorCallback);
 			});
 		}
