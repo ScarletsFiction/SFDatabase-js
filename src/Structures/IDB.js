@@ -1,4 +1,8 @@
 if(!isNode && !options.websql){
+	var iDBError = function(ev){
+		console.error((ev.target && ev.target.error.message) || ev);
+	}
+
 	IDBStructure(function(e){
 		if(typeof IDBOpenDBRequest !== 'function'){
 			// Fallback to WebSQL
@@ -6,7 +10,7 @@ if(!isNode && !options.websql){
 			return WebSQLStructure();
 		}
 
-		console.error(e.target.error);
+		iDBError(e);
 	});
 }
 
@@ -41,11 +45,11 @@ function IDBStructure(initError){
 
 		scope.db = window.indexedDB.open(databaseName, options.idbVersion || 1);
 		scope.db.onupgradeneeded = scope.db.onversionchange = onVersionChange;
-		scope.db.onerror = console.error;
+		scope.db.onerror = iDBError;
 		scope.db.onsuccess = function(ev){
 			if(scope.db.result){
 				scope.db = scope.db.result;
-				scope.db.onerror = console.error;
+				scope.db.onerror = iDBError;
 			}
 
 			initFinish(scope);
@@ -68,7 +72,7 @@ function IDBStructure(initError){
 			if(errorCallback) errorCallback(e)
 			return;
 		}
-  		transaction.onerror = errorCallback || console.error;
+  		transaction.onerror = errorCallback || iDBError;
   		return transaction.objectStore(tableName);
 	}
 }

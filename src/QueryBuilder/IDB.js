@@ -354,7 +354,7 @@ function IDBQueryBuilder(){
 	}
 
 	scope.cursor = function(tableName, where, onScanning){
-  		var objectStore = scope.getObjectStore(tableName, where && where.write ? "readwrite" : "readonly", console.error);
+  		var objectStore = scope.getObjectStore(tableName, where && where.WRITE ? "readwrite" : "readonly", iDBError);
   		if(!objectStore) return;
 
 		if(where){
@@ -379,7 +379,7 @@ function IDBQueryBuilder(){
 		}
   		else var req = objectStore.openCursor();
 
-  		req.onerror = console.error;
+  		req.onerror = iDBError;
   		req.onsuccess = onScanning;
   		return req;
 	}
@@ -433,6 +433,11 @@ function IDBQueryBuilder(){
   			if(select === '*'){
       			query.result.push(value);
   				return;
+  			}
+
+  			if(select.constructor === String){
+      			query.result.push(value[select]);
+      			return;
   			}
 
       		var temp = {};
