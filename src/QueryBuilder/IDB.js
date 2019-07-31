@@ -181,8 +181,11 @@ function IDBQueryBuilder(){
 		}
 
 		if(objectStore !== void 0){
-			if(range !== null)
-				return objectStore.index(key).openCursor(range);
+			if(range !== null){
+				try{
+					return objectStore.index(key).openCursor(range);
+				}catch(e){return objectStore.openCursor();}
+			}
 			return objectStore.openCursor();
 		}
 
@@ -306,7 +309,6 @@ function IDBQueryBuilder(){
   		var query = prepareQuery(tableName, "readonly", where, errorCallback);
   		if(!query) return;
   		var request = query.request;
-
 		request.onerror = errorCallback;
 		request.onsuccess = function(){
       		var cursor = request.result;
@@ -349,6 +351,7 @@ function IDBQueryBuilder(){
 				return IDBKeyRange.bound(val[0], val[1]);
 			if(opt === '>=<]')
 				return IDBKeyRange.bound(val[0], val[1], true);
+			return null;
 		}
 		return IDBKeyRange.only(val);
 	}
