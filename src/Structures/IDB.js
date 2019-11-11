@@ -29,6 +29,7 @@ function IDBStructure(initError){
 		return;
 	}
 
+	scope.busy = false;
 	scope.storage = 'indexeddb';
 	scope.reopen = function(){
 		onStructureInitialize = function(){
@@ -61,7 +62,17 @@ function IDBStructure(initError){
 		if(scope.db.result)
 			scope.db = scope.db.result;
 
-		checkStructure(function(){});
+		scope.busy = [];
+		checkStructure(function(){
+			if(!scope.busy)
+				return;
+
+			for (var i = 0; i < scope.busy.length; i++) {
+				scope.busy[i][0].apply(null, scope.busy[1]);
+			}
+
+			scope.busy = false;
+		});
 	}
 
 	//action = readwrite, readonly

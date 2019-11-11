@@ -285,6 +285,9 @@ function IDBQueryBuilder(){
 	}
 
 	scope.insert = function(tableName, object, successCallback, errorCallback){
+		if(scope.busy !== false)
+			return scope.busy.push(scope.insert, arguments);
+
 		var duplicated = false;
   		var objectStore = scope.getObjectStore(tableName, "readwrite", function(){
   			if(!duplicated)
@@ -306,6 +309,9 @@ function IDBQueryBuilder(){
 	}
 
 	scope.has = function(tableName, where, successCallback, errorCallback){
+		if(scope.busy !== false)
+			return scope.busy.push(scope.has, arguments);
+
   		var query = prepareQuery(tableName, "readonly", where, errorCallback);
   		if(!query) return;
   		var request = query.request;
@@ -357,6 +363,9 @@ function IDBQueryBuilder(){
 	}
 
 	scope.cursor = function(tableName, where, onScanning){
+		if(scope.busy !== false)
+			return scope.busy.push(scope.cursor, arguments);
+
   		var objectStore = scope.getObjectStore(tableName, where && where.WRITE ? "readwrite" : "readonly", iDBError);
   		if(!objectStore) return;
 
@@ -388,6 +397,9 @@ function IDBQueryBuilder(){
 	}
 
 	scope.get = function(tableName, select, where, successCallback, errorCallback){
+		if(scope.busy !== false)
+			return scope.busy.push(scope.get, arguments);
+
   		var query = prepareQuery(tableName, "readonly", where, errorCallback);
   		if(!query) return;
 
@@ -425,6 +437,9 @@ function IDBQueryBuilder(){
 	}
 
 	scope.select = function(tableName, select, where, successCallback, errorCallback){
+		if(scope.busy !== false)
+			return scope.busy.push(scope.select, arguments);
+
   		var query = prepareQuery(tableName, "readonly", where, errorCallback);
   		if(!query) return;
 
@@ -477,6 +492,9 @@ function IDBQueryBuilder(){
 	}
 
 	scope.delete = function(tableName, where, successCallback, errorCallback){
+		if(scope.busy !== false)
+			return scope.busy.push(scope.delete, arguments);
+
 		if(!where){
 			var store = scope.getObjectStore(tableName, "readwrite", errorCallback);
 			store.onsuccess = successCallback;
@@ -518,6 +536,9 @@ function IDBQueryBuilder(){
 	}
 
 	scope.update = function(tableName, object, where, successCallback, errorCallback){
+		if(scope.busy !== false)
+			return scope.busy.push(scope.update, arguments);
+
   		var query = prepareQuery(tableName, "readwrite", where, errorCallback);
   		if(!query) return;
 

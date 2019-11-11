@@ -29,7 +29,7 @@ gulp.task('browserjs', function(){
           "@babel/preset-env",
           {
             "targets": {
-              "ie": "9"
+              "ie": "11"
             },
             "loose":true,
             "modules": false
