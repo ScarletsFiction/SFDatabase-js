@@ -46,11 +46,9 @@ function IDBStructure(initError){
 
 		scope.db = window.indexedDB.open(databaseName, options.idbVersion || 1);
 		scope.db.onupgradeneeded = scope.db.onversionchange = onVersionChange;
-		scope.db.onerror = iDBError;
 		scope.db.onsuccess = function(ev){
 			if(scope.db.result){
 				scope.db = scope.db.result;
-				scope.db.onerror = iDBError;
 			}
 
 			initFinish(scope);

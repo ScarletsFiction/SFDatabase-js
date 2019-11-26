@@ -362,11 +362,11 @@ function IDBQueryBuilder(){
 		return IDBKeyRange.only(val);
 	}
 
-	scope.cursor = function(tableName, where, onScanning){
+	scope.cursor = function(tableName, where, onScanning, onError){
 		if(scope.busy !== false)
 			return scope.busy.push(scope.cursor, arguments);
 
-  		var objectStore = scope.getObjectStore(tableName, where && where.WRITE ? "readwrite" : "readonly", iDBError);
+  		var objectStore = scope.getObjectStore(tableName, where && where.WRITE ? "readwrite" : "readonly", onError);
   		if(!objectStore) return;
 
 		if(where){
@@ -391,7 +391,7 @@ function IDBQueryBuilder(){
 		}
   		else var req = objectStore.openCursor();
 
-  		req.onerror = iDBError;
+  		req.onerror = onError;
   		req.onsuccess = onScanning;
   		return req;
 	}
