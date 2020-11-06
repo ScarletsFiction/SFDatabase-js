@@ -99,8 +99,7 @@ function SQLQueryBuilder(){
 						objectData.push(value);
 					}
 
-					else
-						console.error('SQL where: value ' + matches[1] + ' with type ' + type.name + ' can\'t be accepted');
+					else console.error('SQL where: value ' + matches[1] + ' with type ' + type.name + ' can\'t be accepted');
 				}
 			}
 		}
@@ -130,22 +129,22 @@ function SQLQueryBuilder(){
 		}
 
 		var options = '';
-		if(object['ORDER']){
-			var columns = Object.keys(object['ORDER']);
+		if(object.ORDER){
+			var columns = Object.keys(object.ORDER);
 			var stack = [];
 			for(var i = 0; i < columns.length; i++){
-				var order = object['ORDER'][columns[i]].toUpperCase();
+				var order = object.ORDER[columns[i]].toUpperCase();
 				if(order !== 'ASC' && order !== 'DESC') continue;
 				stack.push(validateText(columns[i]) + ' ' + order);
 			}
 			options = options + ' ORDER BY ' + stack.join(', ');
 		}
-		if(object['LIMIT']){
-			if(!isNaN(object['LIMIT'][0]) && !isNaN(object['LIMIT'][1])){
-				options = options + ' LIMIT ' + object['LIMIT'][1] + ' OFFSET ' + object['LIMIT'][0];
+		if(object.LIMIT){
+			if(!isNaN(object.LIMIT[0]) && !isNaN(object.LIMIT[1])){
+				options = options + ' LIMIT ' + object.LIMIT[1] + ' OFFSET ' + object.LIMIT[0];
 			}
-			else if(!isNaN(object['LIMIT'])){
-				options = options + ' LIMIT '+ object['LIMIT'];
+			else if(!isNaN(object.LIMIT)){
+				options = options + ' LIMIT '+ object.LIMIT;
 			}
 		}
 
@@ -162,9 +161,6 @@ function SQLQueryBuilder(){
 	scope.createTable = function(tableName, columns, successCallback, errorCallback){
 		var columns_ = Object.keys(columns);
 		for(var i = 0; i < columns_.length; i++){
-			if(columns_[i][0] === '$')
-				columns_[i] = columns_[i].slice(1);
-
 			if(columns[columns_[i]].constructor === Array)
 				columns_[i] = validateText(columns_[i]) + ' ' + columns[columns_[i]].join(' ').toUpperCase();
 			else
@@ -178,7 +174,7 @@ function SQLQueryBuilder(){
 	//Select separated by comma
 	scope.select = function(tableName, select, where, successCallback, errorCallback){
 		var select_ = select;
-		
+
 		if(select !== '*'){
 			if(select.constructor === String)
 				select_ = [select];
@@ -188,7 +184,7 @@ function SQLQueryBuilder(){
 			}
 		}
 		else select_ = false;
-		
+
 		var wheres = scope.makeWhere(where);
 		var query = "SELECT " + (select_?select_.join(', '):select) + " FROM " + validateText(tableName) + wheres[0];
 
@@ -254,7 +250,7 @@ function SQLQueryBuilder(){
 			objectData.push(object_[columns[i]]);
 		}
 		var query = "INSERT INTO " + validateText(tableName) + " (" + objectName.join(', ') + ") VALUES (" + objectName_.join(', ') + ")";
-		
+
 		scope.SQLQuery(query, objectData, successCallback, errorCallback);
 	}
 

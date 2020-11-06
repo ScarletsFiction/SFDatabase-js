@@ -1,4 +1,3 @@
-if(!isNode && options.websql === undefined) options.websql = true;
 if(options.websql){
 	WebSQLStructure(function(){
 		// Fallback to IndexedDB

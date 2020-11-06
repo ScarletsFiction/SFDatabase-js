@@ -496,9 +496,10 @@ function IDBQueryBuilder(){
 			return scope.busy.push(scope.delete, arguments);
 
 		if(!where){
-			var store = scope.getObjectStore(tableName, "readwrite", errorCallback);
+			var store = scope.getObjectStore(tableName, "readwrite", errorCallback).clear();
 			store.onsuccess = successCallback;
-			return store.clear();
+			store.onerror = errorCallback;
+			return;
 		}
 
   		var query = prepareQuery(tableName, "readwrite", where, errorCallback);
