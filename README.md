@@ -1,97 +1,207 @@
-<a href='https://patreon.com/stefansarya'><img src='https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.herokuapp.com%2Fstefansarya%2Fpledges&style=for-the-badge' height='20'></a>
-
 [![Written by](https://img.shields.io/badge/Written%20by-ScarletsFiction-%231e87ff.svg)](LICENSE)
 [![Software License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
 # SFDatabase-js
-SFDatabase-js is a database library that can help you build a SQL Query and execute it to the server from Nodejs or local browser with WebSQL. It will fallback to IndexedDB or LocalStorage for saving the database if running on browser.
+SFDatabase-js is a database library that can help you build a SQL Query and execute it to the server from Nodejs or local browser with WebSQL. It will fallback to IndexedDB or LocalStorage for saving the database if running on browser. [Check the example here](https://jsbin.com/fedoyiviro/edit?js,console).
 
-For Nodejs, you should install [mysqljs](https://github.com/mysqljs/mysql/)
-> $ npm i mysqljs/mysql
+## Getting started for Node.js
+First, you should install [mysqljs](https://github.com/mysqljs/mysql/) and `sfdatabase-js`
+> $ npm i mysqljs/mysql sfdatabase-js
 
-On Nodejs, connection pooling will be used. So it would need a single connection only for every query.
+SFDatabase will use pooling connection, so it would only use single database connection for every query.
 
 ## Sample Usage
-
 ```js
-// You can also preprocess your data before or after the SQL Query is executed
-var preprocessTable = {
-    test:{ // Table name
-        data:{ // Column name
-            set:JSON.stringify, // On insert or update
-            get:JSON.parse // On select
-        }
-    }
-};
-
 var options = {
-    mysql:true, // NodeJS only
-    websql:true, // Will fallback to indexeddb if failed
+    mysql:true,
+
+    // Required for NodeJS to login to MySQL
+    host:'localhost',
+    user:'root',
+    password:'',
+    hideInitialization:true, // Keep silent after connected to DB
+
+    // Debug SQL query if needed
     debug:function(query, data){
         console.log("Query: "+query, data);
     }
 };
-// {host:'localhost', user:'root', password:''}; <- Required for NodeJS to login to MySQL
 
-var myDatabase = new SFDatabase('YourDatabaseName', options, function(resumePending){
-    // Wait until the class reference saved to myDatabase variable
-    setTimeout(function(){
-        console.log('Database Initialized!');
-        myDatabase.preprocessTable = preprocessTable;
+var MyDB = new SFDatabase('MyDB', options, function(){
+    console.log("Database was connected!");
 
-        // Make sure the database already created (if exist, creation process will be skipped)
-        myDatabase.createTable('test', {id:'number', name:'text', data:'text', words:'text'}, function(){
-            resumePending(); // Continue pending SQL query
-            queryTest();
-        }, console.error);
-    }, 1);
-
-    return true; // Pause pending SQL query (if false, it would resume after this function end)
+    // You can also preprocess your data before or after the SQL Query is executed
+    // This is optional
+    MyDB.preprocessTable = {
+        test:{ // Table name
+            data:{ // Column name
+                set:JSON.stringify, // On insert or update
+                get:JSON.parse // On select
+            }
+        }
+    };
 });
-
-// You should wait until myDatabase.initialized is set to true
-// Any query that passed when not initialized will be pended
 ```
 
-Available Function
+## Getting started for Browser
+Add this into your HTML's header.
+```xml
+<script src="https://cdn.jsdelivr.net/npm/sfdatabase-js@1.3.2/dist/SFDatabase.min.js"></script>
+```
+
+Before you use the database, you need to create the table first.
+```js
+// Let's figure the configuration first
+var options = {
+    // Set this to true if you want to use WebSQL
+    // Only some browser may support WebSQL
+    // Set to false if you want to use IndexedDB
+    websql:false,
+
+    // When you have changed the DBStructure you need to update this version
+    idbVersion:1,
+
+    // Your database table's structure
+    structure:{
+        // TableName:{ TableStructure },
+        UsersInfo:{
+            $user_id:['number', 'unique'], // indexed user_id
+            $username:'text', // indexed username
+            name:'text',
+
+            // When using IndexedDB you can store almost any data types
+            // To improve performance and memory you shouldn't store a big Object
+            // instead you should spread it as table's structure
+            data:'Object', // you can store like {my: 'object'}
+
+            // When using IndexedDB you can also store data without
+            // declaring the structure, but declaring the table name is a must
+        },
+        Settings:{
+            $name:['text', 'unique'], // indexed name
+            value:'text',
+        },
+    },
+
+    // Debug WebSQL query if needed
+    debug:function(query, data){
+        console.log("Query: "+query, data);
+    }
+};
+
+// Let's begin the initialization with above's configuration
+var MyDB = new SFDatabase('MyDBName', options, function(){
+    // MyDB_was_initialize(MyDB);
+
+    // Maybe add some feature to make something easier
+    Object.assign(MyDB, myFeature);
+    MyDB.setSettings("It's", "ready", function(){
+        MyDB.getSettings("It's", console.log)
+    });
+});
+
+var myFeature = {
+    getSettings(name, callback){
+        //       TableName  Get Column   Where    Success Callback
+        this.get('Settings', 'value', {name:name}, function(data){
+            callback(data);
+        });
+    },
+    setSettings(name, value){
+        let that = this;
+        //       TableName      Where     Success Callback
+        this.has('Settings', {name:name}, function(exist){
+            if(exist === false)
+                that.insert('Settings', {name:name, value:value});
+                   //       TableName           Data
+            else
+                that.update('Settings', {value:value}, {name:name});
+                   //       TableName       Data           Where
+        });
+    }
+};
+```
+
+## Available Function
 
 ```js
+// If you use IndexedDB you don't need .createTable
+// onSuccess and onError callback are optional
+
 // CREATE TABLE IF NOT EXISTS test (id NUMBER, name TEXT, data TEXT, words TEXT)
-// createTable(table, fields, onSuccess, onError);
-myDatabase.createTable('test', {id:['number', 'unique'], name:'text', data:'text', words:'text'}, console.warn);
+// createTable(tableName, structure, onSuccess, onError);
+MyDB.createTable('test', {
+    id:['number', 'unique'],
+    name:'text',
+    data:'text',
+    words:'text'
+}, console.warn, console.error);
 
 // INSERT INTO test (id, name, words) VALUES (?, ?, ?)
-// createTable(table, fields, onSuccess, onError);
-myDatabase.insert("test", {id:1, name:"abc", words:'hey'}, console.warn);
+// insert(tableName, fields, onSuccess, onError);
+MyDB.insert("test", {
+    id:1,
+    name:"abc",
+    words:'hey'
+}, console.warn);
 
-// UPDATE test SET name = ?, data = ? WHERE (id = ? AND (name = ? OR name = ?))
-// createTable(table, fields, where, onSuccess, onError);
-myDatabase.update("test", {'name':'zxc', data:{any:[1,2,3]}}, {AND:{id:1, OR:{name:'abc', 'name#1':'zxc'}}}, console.warn);
+// UPDATE test
+//      SET name = ?, data = ?
+//      WHERE (id = ? AND (name = ? OR name = ?))
+// update(tableName, fields, where, onSuccess, onError);
+MyDB.update("test", {
+    // Fields
+    name:'zxc',
+    data:{
+        any:[1,2,3]
+    }
+}, {
+    // Where
+    AND:{
+        id:1,
+        OR:{
+            name:'abc',
+            'name#1':'zxc'
+        }
+    }
+}, console.warn);
 
-// SELECT name, data FROM test WHERE (id = ? OR (words LIKE ?)) LIMIT 1
-// createTable(table, fields, where, onSuccess, onError);
-myDatabase.select("test", ['name', 'data'], {OR:{id:321, 'words[~]':'hey'}, LIMIT:1}, console.warn);
+// SELECT name, data FROM test
+//      WHERE (id = ? OR (words LIKE ?))
+//      LIMIT 1
+// select(tableName, GetFieldsData, where, onSuccess, onError);
+MyDB.select("test", ['name', 'data'], {
+    OR:{
+        id:321,
+        'words[~]':'hey'
+    },
+    LIMIT:1
+}, console.warn);
 
-// SELECT name FROM test WHERE (rowid = ? AND (name = ? OR name = ?) AND (id IN (?, ?, ?) OR data IS NOT NULL))
-myDatabase.select("test", ['name'], {AND:{rowid:1, OR:{name:'abc', 'name#1':'zxc'}, 'OR#1':{id:[1,2,null], 'data[!]':null}}}, console.warn);
+// SELECT name FROM test
+//      WHERE (rowid = ? AND (name = ? OR name = ?) AND (id IN (?, ?, ?) OR data IS NOT NULL))
+MyDB.select("test", 'name', {
+    AND:{
+        rowid:1,
+        OR:{name:'abc', 'name#1':'zxc'},
+        'OR#1':{id:[1,2,null], 'data[!]':null}
+    }
+}, console.warn);
 
 // DELETE FROM test WHERE (name LIKE ?)
-// delete(table, where, onSuccess, onError);
-myDatabase.delete("test", {'name[~]':"%xc"}, console.warn);
+// delete(tableName, where, onSuccess, onError);
+MyDB.delete("test", {'name[~]':"%xc"}, console.warn);
 
 // TRUNCATE TABLE test
-myDatabase.delete("test", 0, console.warn);
-myDatabase.drop("test", console.warn);
+MyDB.delete("test", 0, console.warn);
+
+// Drop table
+MyDB.drop("test", console.warn);
 ```
 
 ## Contribution
-
-If you want to help in SFDatabase-js library, please fork this project and edit on your repository, then make a pull request to here.
-
-Keep the code simple and clear.
+If you want to help in SFDatabase-js library, please fork this project and edit on your repository, then make a pull request to here. This library can be improved by making some code more efficient.
 
 ## License
-
 SFDatabase-js is under the MIT license.
-
-But don't forget to put the a link to this repository.
+Don't forget to put the a link to this repository :)
