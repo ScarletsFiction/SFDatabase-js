@@ -1,6 +1,6 @@
 {
   "name": "sfdatabase-js",
-  "version": "1.3.1",
+  "version": "1.3.3",
   "description": "SFDatabase-js is a database library that can help you build a SQL Query and execute it to the server from Nodejs or local browser with WebSQL. It will fallback to IndexedDB or LocalStorage for saving the database if running on browser.",
   "repository": {
     "type": "git",
