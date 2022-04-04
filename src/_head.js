@@ -8,10 +8,10 @@
 
 'use strict';
 function SFDatabase(databaseName, options, onConnected){
-	var scope = this;
-	scope.db = null;
-	scope.pending = [];
-	scope.initialized = false;
+	var My = this;
+	My.db = null;
+	My.pending = [];
+	My.initialized = false;
 	if(options.databaseStructure)
 		console.warn('`options.databaseStructure` is deprecated, please use `options.structure` instead.');
 
@@ -22,8 +22,8 @@ function SFDatabase(databaseName, options, onConnected){
 		options = {debug:false};
 
 	var initFinish = function(){
-		if(scope.initialized) return;
-		scope.initialized = true;
+		if(My.initialized) return;
+		My.initialized = true;
 
 		if(onConnected){
 			setTimeout(function(){
@@ -36,21 +36,21 @@ function SFDatabase(databaseName, options, onConnected){
 
 	var pendingTimer = -1;
 	var resumePending = function(){
-		if(!scope.db){
+		if(!My.db){
 			clearTimeout(pendingTimer);
 			pendingTimer = setTimeout(resumePending, 1000);
 			return;
 		}
-		if(!scope.pending.length) return;
-		for (var i = 0; i < scope.pending.length; i++) {
-			scope.pending[i]();
+		if(!My.pending.length) return;
+		for (var i = 0; i < My.pending.length; i++) {
+			My.pending[i]();
 		}
-		scope.pending.splice(0);
+		My.pending.splice(0);
 	}
 
 	var destroyObject = function(obj){
 		if(!obj || typeof obj !== 'object') return;
-		if(obj instanceof Array)
+		if(obj.constructor === Array)
 			obj.splice(0);
 		else {
 			var objKeys = Object.keys(obj);
@@ -61,16 +61,16 @@ function SFDatabase(databaseName, options, onConnected){
 		obj = null;
 	}
 
-	scope.preprocessTable = {}; // {tableName:{columnName:{set:function, get:function}}}}
+	My.preprocessTable = {}; // {tableName:{columnName:{set:function, get:function}}}}
 	var preprocessData = function(tableName, mode, object){
 		var found = false;
-		if(!scope.preprocessTable[tableName]) return found;
+		if(!My.preprocessTable[tableName]) return found;
 
-		var keys = Object.keys(scope.preprocessTable[tableName]);
+		var keys = Object.keys(My.preprocessTable[tableName]);
 		for (var i = 0; i < keys.length; i++) {
-			if(!object[keys[i]] || !scope.preprocessTable[tableName][keys[i]][mode])
+			if(!object[keys[i]] || !My.preprocessTable[tableName][keys[i]][mode])
 				continue;
-			object[keys[i]] = scope.preprocessTable[tableName][keys[i]][mode](object[keys[i]]);
+			object[keys[i]] = My.preprocessTable[tableName][keys[i]][mode](object[keys[i]]);
 			found = true;
 		}
 		return found;
@@ -79,31 +79,20 @@ function SFDatabase(databaseName, options, onConnected){
 	var isNode = typeof process !== 'undefined' && process.execPath;
 	if(!isNode){
 		var onStructureInitialize = null;
-		var checkStructure = function(callback){
-			var table = Object.keys(options.structure);
-
-			var queued = table.length;
-			var reduceQueue = function(){
-				queued--;
-				if(queued === 0){
-					if(!callback) initFinish(scope);
-					else callback();
-				}
-			};
-
-			setTimeout(function(){
-				if(queued > 1)
-					console.error("Failed to initialize", queued, "database structure");
-			}, 5000);
-
-			for (var i = 0; i < table.length; i++) {
-				scope.createTable(table[i], options.structure[table[i]], reduceQueue);
-			}
+		var checkStructure = async function(callback){
+			let object = options.structure;
 
 			if(onStructureInitialize){
 				onStructureInitialize();
 				onStructureInitialize = null;
 			}
+
+			for (const table in object) {
+				await My.createTable(table, options.structure[table]);
+			}
+
+			if(!callback) initFinish(My);
+			else callback();
 		}
 	}
 	// Load all query builder from here

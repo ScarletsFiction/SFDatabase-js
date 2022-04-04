@@ -1,16 +1,20 @@
 function SQLQueryBuilder(){
-	// structure must have `scope.SQLQuery`
+	// structure must have `My.SQLQuery`
 
 	function validateText(text){
 		var matches = text.match(/[a-zA-Z0-9_\.]+/i);
 		return '`'+matches[0]+'`';
 	}
 
+	function copyObject(obj){
+		return JSON.parse(JSON.stringify(obj));
+	}
+
 	//{('AND', 'OR'), 'ORDER':{columnName:'ASC', 'DESC'}, 'LIMIT':[startIndex, rowsLimit]}
 
 	// ex: ["AND"=>["id"=>12, "OR"=>["name#1"=>"myself", "name"=>"himself"]], "LIMIT"=>1]
 		// Select one where (id == 12 && (name == "myself" || name == "himself"))
-	scope.makeWhere = function(object, comparator, children){
+	My.makeWhere = function(object, comparator, children){
 		if(!object) return ['', []];
 		var wheres = [];
 
@@ -20,18 +24,17 @@ function SQLQueryBuilder(){
 		var specialList = ['order', 'limit'];
 
 		for(var i = 0; i < columns.length; i++){
-			var value = object[columns[i]];
+			let key = columns[i];
+			var value = object[key];
 
-			var matches = columns[i].match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
+			var matches = key.match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
 			var check = matches[1].toLowerCase();
-			if(check==='and' || check==='or') continue;
-			if(!children && specialList.indexOf(check)!==-1) continue;
+			if(check === 'and' || check === 'or') continue;
+			if(!children && specialList.includes(check)) continue;
 
 			if(matches[3]){
-				if((['>', '>=', '<', '<=']).indexOf(matches[3])!==-1)
-				{
-					if(!isNaN(value))
-					{
+				if((['>', '>=', '<', '<=']).includes(matches[3])) {
+					if(!isNaN(value)) {
 						wheres.push(matches[1] + ' ' + matches[3] + ' ?');
 						objectData.push(value);
 						continue;
@@ -41,12 +44,11 @@ function SQLQueryBuilder(){
 						console.error(msg);
 					}
 				}
-				else if(matches[3] === '!')
-				{
+				else if(matches[3] === '!') {
 					var type = value === null || value === undefined ? false : value.constructor;
 					if(!type)
 						wheres.push(matches[1] + ' IS NOT NULL');
-					else{
+					else {
 						if(type === Array){
 							var temp = [];
 							for (var a = 0; a < value.length; a++) {
@@ -55,18 +57,15 @@ function SQLQueryBuilder(){
 							wheres.push(matches[1] + ' NOT IN ('+ temp.join(', ') +')');
 							objectData = objectData.concat(value);
 						}
-
 						else if(type === Number || type === Boolean || type === String){
 							wheres.push(matches[1] + ' != ?');
 							objectData.push(value);
 						}
-
 						else
 							console.error('SQL where: value ' + matches[1] + ' with type ' + type.name + ' can\'t be accepted');
 					}
 				}
-				else if (matches[3] === '~' || matches[3] === '!~')
-				{
+				else if(matches[3] === '~' || matches[3] === '!~') {
 					if(value.constructor !== Array){
 						value = [value];
 					}
@@ -74,13 +73,14 @@ function SQLQueryBuilder(){
 					var likes = [];
 					for (var a = 0; a < value.length; a++) {
 						likes.push(matches[1] + (matches[3] === '!~' ? ' NOT' : '') + ' LIKE ?');
-						if(value.indexOf('%') === -1) value[a] = '%'+value[a]+'%';
+						if(value[a].includes('%') === false) value[a] = '%'+value[a]+'%';
 						objectData.push(value[a]);
 					}
 
                     wheres.push('('+likes.join(' OR ')+')');
 				}
-			} else {
+			}
+			else {
 				var type = value === null || value === undefined ? false : value.constructor;
 				if(!type)
 					wheres.push(matches[1] + ' IS NULL');
@@ -93,36 +93,35 @@ function SQLQueryBuilder(){
 						wheres.push(matches[1] + ' IN ('+ temp.join(', ') +')');
 						objectData = objectData.concat(value);
 					}
-
 					else if(type === Number || type === Boolean || type === String){
 						wheres.push(matches[1] + ' = ?');
 						objectData.push(value);
 					}
-
 					else console.error('SQL where: value ' + matches[1] + ' with type ' + type.name + ' can\'t be accepted');
 				}
 			}
 		}
 
-		for (var i = 0; i < columns.length; i++) {
-			if(columns[i]==='ORDER'||columns[i]==='LIMIT')
+		for(var i = 0; i < columns.length; i++) {
+			let key = columns[i];
+			if(key === 'ORDER' || key === 'LIMIT')
                 continue;
 
-			var test = columns[i].split('AND');
+			var test = key.split('AND');
 			var haveRelation = false;
 			if(test.length === 2 && test[0] === ''){
 				defaultConditional = ' AND ';
 				haveRelation = true;
 			}
 			else{
-				test = columns[i].split('OR');
+				test = key.split('OR');
 				if(test.length === 2 && test[0] === ''){
 					defaultConditional = ' OR ';
 					haveRelation = true;
 				}
 			}
 			if(haveRelation){
-				var childs = scope.makeWhere(object[columns[i]], defaultConditional, true);
+				var childs = My.makeWhere(object[key], defaultConditional, true);
 				wheres.push('('+childs[0]+')');
 				objectData = objectData.concat(childs[1]);
 			}
@@ -130,13 +129,15 @@ function SQLQueryBuilder(){
 
 		var options = '';
 		if(object.ORDER){
-			var columns = Object.keys(object.ORDER);
+			let columns = object.ORDER;
 			var stack = [];
-			for(var i = 0; i < columns.length; i++){
-				var order = object.ORDER[columns[i]].toUpperCase();
+
+			for (let column in columns) {
+				var order = object.ORDER[columns].toUpperCase();
 				if(order !== 'ASC' && order !== 'DESC') continue;
-				stack.push(validateText(columns[i]) + ' ' + order);
+				stack.push(validateText(columns) + ' ' + order);
 			}
+
 			options = options + ' ORDER BY ' + stack.join(', ');
 		}
 		if(object.LIMIT){
@@ -150,15 +151,14 @@ function SQLQueryBuilder(){
 
 		var where_ = '';
 		if(wheres.length!==0){
-			if(!children)
-				where_ = " WHERE ";
+			if(!children) where_ = " WHERE ";
 			where_ = where_ + wheres.join(comparator ? comparator : defaultConditional);
 		}
 
 		return [where_ + options, objectData];
 	}
 
-	scope.createTable = function(tableName, columns, successCallback, errorCallback){
+	My.createTable = async function(tableName, columns){
 		var columns_ = Object.keys(columns);
 		for(var i = 0; i < columns_.length; i++){
 			if(columns[columns_[i]].constructor === Array)
@@ -168,11 +168,11 @@ function SQLQueryBuilder(){
 		}
 		var query = 'CREATE TABLE IF NOT EXISTS '+validateText(tableName)+' ('+columns_.join(', ')+')';
 
-		scope.SQLQuery(query, [], successCallback, errorCallback);
+		return await My.SQLQuery(query, []);
 	}
 
-	//Select separated by comma
-	scope.select = function(tableName, select, where, successCallback, errorCallback){
+	// Select separated by comma
+	My.select = async function(tableName, select, where){
 		var select_ = select;
 
 		if(select !== '*'){
@@ -185,102 +185,101 @@ function SQLQueryBuilder(){
 		}
 		else select_ = false;
 
-		var wheres = scope.makeWhere(where);
+		var wheres = My.makeWhere(where);
 		var query = "SELECT " + (select_?select_.join(', '):select) + " FROM " + validateText(tableName) + wheres[0];
 
-		scope.SQLQuery(query, wheres[1], function(data){
-			if(data.length !== 0 && preprocessData(tableName, 'get', data[0])){
-				for (var i = 1; i < data.length; i++) {
-					preprocessData(tableName, 'get', data[i]);
-				}
+		let data = await My.SQLQuery(query, wheres[1]);
+		if(data.length !== 0 && preprocessData(tableName, 'get', data[0])){
+			for (var i = 1; i < data.length; i++) {
+				preprocessData(tableName, 'get', data[i]);
 			}
-			successCallback(data);
-		}, errorCallback);
+		}
+
+		return data;
 	}
 
-	scope.has = function(tableName, where, successCallback, errorCallback){
+	My.has = async function(tableName, where){
 		where.LIMIT = 1;
-		var wheres = scope.makeWhere(where);
+		var wheres = My.makeWhere(where);
 		var query = "SELECT 1 FROM " + validateText(tableName) + wheres[0];
 
-		scope.SQLQuery(query, wheres[1], function(data){
-			if(data.length !== 0)
-				return successCallback(true);
-			successCallback(false);
-		}, errorCallback);
+		let data = await My.SQLQuery(query, wheres[1]);
+		return data.length !== 0;
 	}
 
-	scope.get = function(tableName, select, where, successCallback, errorCallback){
+	My.get = async function(tableName, select, where){
 		where.LIMIT = 1;
-		scope.select(tableName, select, where, function(rows){
-			if(rows.length === 0)
-				successCallback(null);
-			else if(select.constructor === Array)
-				successCallback(rows[0]);
-			else successCallback(rows[0][select]);
-		}, errorCallback);
+		let rows = await My.select(tableName, select, where);
+
+		if(rows.length === 0)
+			return null;
+		else if(select.constructor === Array)
+			return rows[0];
+		else return rows[0][select];
 	}
 
-	scope.delete = function(tableName, where, successCallback, errorCallback){
+	My.delete = async function(tableName, where){
 		if(where){
-			var wheres = scope.makeWhere(where);
+			var wheres = My.makeWhere(where);
 			var query = "DELETE FROM " + validateText(tableName) + wheres[0];
-			scope.SQLQuery(query, wheres[1], successCallback, errorCallback);
+			return await My.SQLQuery(query, wheres[1]);
 		}
 		else{
 			var query = "TRUNCATE TABLE " + validateText(tableName);
-			scope.SQLQuery(query, [], successCallback, function(msg){
-				if(msg.indexOf('syntax error') !== -1) // WebSQL may not support truncate function
-					scope.delete(tableName, [], successCallback, errorCallback);
-			});
+			try {
+				let result = await My.SQLQuery(query, []);
+				return result;
+			} catch(e) {
+				if(e.message.includes('syntax error')) // WebSQL may not support truncate function
+				My.delete(tableName, []);
+			}
 		}
 	}
 
-	scope.insert = function(tableName, object, successCallback, errorCallback){
+	My.insert = async function(tableName, object){
 		var objectName = [];
 		var objectName_ = [];
 		var objectData = [];
-		var object_ = JSON.parse(JSON.stringify(object)); // Object copy before preprocessData
-		var columns = Object.keys(object_);
+		var object_ = copyObject(object); // Object copy before preprocessData
+
 		preprocessData(tableName, 'set', object_);
-		for(var i = 0; i < columns.length; i++){
-			objectName.push(validateText(columns[i]));
+
+		for (let key in object) {
+			objectName.push(validateText(key));
 			objectName_.push('?');
-
-			objectData.push(object_[columns[i]]);
+			objectData.push(object_[key]);
 		}
-		var query = "INSERT INTO " + validateText(tableName) + " (" + objectName.join(', ') + ") VALUES (" + objectName_.join(', ') + ")";
 
-		scope.SQLQuery(query, objectData, successCallback, errorCallback);
+		var query = "INSERT INTO " + validateText(tableName) + " (" + objectName.join(', ') + ") VALUES (" + objectName_.join(', ') + ")";
+		return await My.SQLQuery(query, objectData);
 	}
 
-	scope.update = function(tableName, object, where, successCallback, errorCallback){
-		var wheres = scope.makeWhere(where);
+	My.update = async function(tableName, object, where){
+		var wheres = My.makeWhere(where);
 		var objectName = [];
 		var objectData = [];
-		var object_ = JSON.parse(JSON.stringify(object)); // Object copy before preprocessData
-		var columns = Object.keys(object_);
+		var object_ = copyObject(object); // Object copy before preprocessData
 		preprocessData(tableName, 'set', object_);
-		for(var i = 0; i < columns.length; i++){
-			objectName.push(validateText(columns[i])+' = ?');
-			objectData.push(object_[columns[i]]);
+
+		for (let key in object) {
+			objectName.push(validateText(key)+' = ?');
+			objectData.push(object_[key]);
 		}
+
 		var query = "UPDATE " + validateText(tableName) + " SET " + objectName.join(', ') + wheres[0];
-		scope.SQLQuery(query, objectData.concat(wheres[1]), successCallback, errorCallback);
+		return await My.SQLQuery(query, objectData.concat(wheres[1]));
 	}
 
-	scope.drop = function(tableName, successCallback, errorCallback){
-		scope.SQLQuery("DROP TABLE "+validateText(tableName), [], successCallback, errorCallback);
+	My.drop = async function(tableName){
+		return await My.SQLQuery("DROP TABLE "+validateText(tableName), []);
 	}
 
-	scope.closeDatabase = function(){
-		if(scope.polyfill) return;
-		scope.db.close(function(){
-			// Success
-		}, function(error){
-			var msg = "Error closing Database:" + error.message;
-			if(errorCallback) errorCallback(msg);
-			else console.error(msg);
+	My.closeDatabase = function(){
+		if(My.polyfill) return;
+		return new Promise(function(resolve, reject){
+			My.db.close(resolve, function(error){
+				reject("Error closing Database:" + error.message);
+			});
 		});
 	}
 }

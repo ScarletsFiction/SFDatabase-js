@@ -4,46 +4,37 @@ function MySQLStructure(initError){
 	SQLQueryBuilder();
 
 	var mysql = require('mysql');
-	scope.db = mysql.createPool({
+	My.db = mysql.createPool({
 		host:options.host?options.host:'localhost',
 		user:options.user?options.user:'root',
 		password:options.password?options.password:'',
 		database:databaseName
 	});
 
-	if(onConnected) scope.db.on('connection', initFinish);
+	if(onConnected) My.db.on('connection', initFinish);
 	if(!options.hideInitialization)
 		console.log("Connecting to "+databaseName+" database");
 
-	scope.SQLQuery = function(query, values, successCallback, errorCallback){
+	My.SQLQuery = function(query, values){
 		if(options.debug) options.debug(query, values);
 
-		scope.db.getConnection(function(err1, connection){
-	        if(err1){
-	            (errorCallback || console.error)(err1);
-	            return;
-	        }
+		return new Promise(function(resolve, reject){
+			My.db.getConnection(function(err1, connection){
+				if(err1) return reject(err1);
 
-	        connection.query(query, values, function(err, rows){
-	            connection.release();
-	            destroyObject(values);
-	            values = null;
-	            query = null;
+				connection.query(query, values, function(err, rows){
+					connection.release();
+					destroyObject(values);
 
-	            if(!err && successCallback) setTimeout(function(){
-	            	successCallback(rows);
-	            }, 0);
-	            
-	            else if(err) setTimeout(function(){
-	            	var error = {msg:err.sqlMessage, query:err.sql, code:err.code};
-	            	(errorCallback || console.error)(error);
-	            }, 0);
-	        });
-	    });
+					setTimeout(function(){ 
+						if(!err) resolve(rows);
+						else reject({msg: err.sqlMessage, query: err.sql, code:err.code});
+					}, 0);
+				});
+			});
+		});
 	}
 
 	// Test connection
-	setTimeout(function(){
-		scope.SQLQuery('select 1', []);
-	}, 1000);
+	setTimeout(() => { My.SQLQuery('select 1', []) }, 1000);
 }

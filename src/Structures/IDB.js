@@ -29,54 +29,50 @@ function IDBStructure(initError){
 		return;
 	}
 
-	scope.busy = false;
-	scope.storage = 'indexeddb';
-	scope.reopen = function(){
+	My.busy = false;
+	My.storage = 'indexeddb';
+	My.reopen = function(){
 		onStructureInitialize = function(){
 			if(!options.websql){ // IndexedDB
-				var db = scope.db.objectStoreNames;
+				var db = My.db.objectStoreNames;
 				for (var i = 0; i < db.length; i++) {
 					if(options.structure[db[i]] === void 0)
-						scope.drop(db[i]);
+						My.drop(db[i]);
 				}
 			}
 
 			onStructureInitialize = null;
 		};
 
-		scope.db = window.indexedDB.open(databaseName, options.idbVersion || 1);
-		scope.db.onupgradeneeded = scope.db.onversionchange = onVersionChange;
-		scope.db.onsuccess = function(ev){
-			if(scope.db.result){
-				scope.db = scope.db.result;
+		My.db = window.indexedDB.open(databaseName, options.idbVersion || 1);
+		My.db.onupgradeneeded = My.db.onversionchange = onVersionChange;
+		My.db.onsuccess = function(ev){
+			if(My.db.result){
+				My.db = My.db.result;
 			}
 
-			initFinish(scope);
+			initFinish(My);
 		};
 	}
 
-	scope.reopen();
+	My.reopen();
 	function onVersionChange(ev){
-		if(scope.db.result)
-			scope.db = scope.db.result;
+		if(My.db.result)
+			My.db = My.db.result;
 
-		scope.busy = [];
-		checkStructure(function(){
-			if(!scope.busy)
-				return;
-
-			for (var i = 0; i < scope.busy.length; i++) {
-				scope.busy[i][0].apply(null, scope.busy[1]);
-			}
-
-			scope.busy = false;
+		My.busy = new Promise(resolve => {
+			checkStructure(function(){
+				if(!My.busy) return;
+				resolve();
+				My.busy = false;
+			});
 		});
 	}
 
 	//action = readwrite, readonly
-	scope.getObjectStore = function(tableName, action, errorCallback){
+	My.getObjectStore = function(tableName, action, errorCallback){
 		try{
-  			var transaction = scope.db.transaction(tableName, action);
+  			var transaction = My.db.transaction(tableName, action);
 		}catch(e){
 			if(errorCallback) errorCallback(e)
 			return;

@@ -3,28 +3,27 @@ function IDBQueryBuilder(){
 	// As a query when opening cursor https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/openCursor
 	var IDBWhere = function(data, rules, ORCondition){
 		var currentCondition = ORCondition ? false : true;
-		var rules_ = Object.keys(rules);
-		for (var i = 0; i < rules_.length; i++){ // All operation here are focus on performance
-			var matches = rules_[i].match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
+		for (let key in rules) { // All operation here are focus on performance
+			var matches = key.match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
 			var check = matches[1].toLowerCase();
 			if(check === 'AND' || check === 'OR') continue;
-			var rule = rules[rules_[i]];
 
+			var rule = rules[key];
 			var operationCondition = true;
 
 			// Recurse again
 			if(matches[1] === 'AND'){
-				operationCondition = IDBWhere(data, rules[rules_[i]], false);
+				operationCondition = IDBWhere(data, rules[key], false);
 			}
 
 			// Recurse again
 			else if(matches[1] === 'OR'){
-				operationCondition = IDBWhere(data, rules[rules_[i]], true);
+				operationCondition = IDBWhere(data, rules[key], true);
 			}
 
 			else if(matches[3] === undefined){ // Equal to
-				if(rule instanceof Array){
-					if(rule.indexOf(data[matches[1]]) === -1)
+				if(rule.constructor === Array){
+					if(rule.includes(data[matches[1]]) === false)
 						operationCondition = false; // When nothing match
 				}
 				else if(data[matches[1]] != rule)
@@ -32,8 +31,8 @@ function IDBQueryBuilder(){
 			}
 
 			else if(matches[3] === '!'){ // Not equal to
-				if(rule instanceof Array){
-					if(rule.indexOf(data[matches[1]]) !== -1)
+				if(rule.constructor === Array){
+					if(rule.includes(data[matches[1]]))
 					operationCondition = false; // When something match
 				}
 				else if(data[matches[1]] == rule)
@@ -80,23 +79,21 @@ function IDBQueryBuilder(){
 					operationCondition = false; // When "between 2 value"
 			}
 
-			else if(matches[3].indexOf('~') !== -1){ // Data likes
+			else if(matches[3].includes('~')){ // Data likes
 				var likeCode = 1; // 1 = %value%, 2 = %value, 3 = value%
 				var regexed = [];
-				var rule_ = rule instanceof Array ? rule : [rule];
+				var rule_ = rule.constructor === Array ? rule : [rule];
 
 				for (var a = 0; a < rule_.length; a++) {
 					var temp = rule_[a];
-					if(temp[0] === '%' && temp.slice(-1) === '%'){
+					if(temp.slice(0, 1) === '%' && temp.slice(-1) === '%'){
 						likeCode = 1;
 						temp = temp.slice(1, -1);
 					}
-
-					else if(temp[0] === '%'){
+					else if(temp.slice(0, 1) === '%'){
 						likeCode = 2;
 						temp = temp.slice(1);
 					}
-
 					else if(temp.slice(-1) === '%'){
 						likeCode = 3;
 						temp = temp.slice(0, -1);
@@ -106,7 +103,6 @@ function IDBQueryBuilder(){
 
 					if(likeCode === 2)
 						temp = temp+'$';
-
 					else if(likeCode === 3)
 						temp = '^'+temp;
 
@@ -115,10 +111,9 @@ function IDBQueryBuilder(){
 
 				var exist = data[matches[1]].match(RegExp(regexed.join('|'), 'i'));
 
-				if(matches[3].indexOf('!') !== -1){ // Data not like
+				if(matches[3].includes('!')){ // Data not like
 					if(exist) operationCondition = false; // When "have match"
 				}
-
 				else if(!exist){ // Data like
 					operationCondition = false; // When "not match"
 				}
@@ -142,7 +137,7 @@ function IDBQueryBuilder(){
 	var validateText = function(text){
 		if(typeof text !== 'string') return text;
 		var matches = text.match(/[a-zA-Z0-9_\.]+/);
-		return matches[0]||'';
+		return matches[0] || '';
 	}
 
 	var IDBLimit = function(query){
@@ -170,17 +165,16 @@ function IDBQueryBuilder(){
 		}
 
 		if(db){
-			var keys = Object.keys(where);
-			for (var i = 0; i < keys.length; i++) {
-				var key = keys[i].split('[');
-				if(db[key[0]] !== void 0 && (index === void 0 || (index !== void 0 && key[0] === index))){
-					range = rangeBuilder(key, where[keys[i]]);
+			for (let key in where) {
+				let key_ = key.split('[');
+				if(db[key_[0]] != null && (index === void 0 || (index != null && key_[0] === index))){
+					range = rangeBuilder(key_, where[key]);
 					break;
 				}
 			}
 		}
 
-		if(objectStore !== void 0){
+		if(objectStore != null){
 			if(range !== null){
 				try{
 					return objectStore.index(key).openCursor(range);
@@ -192,60 +186,61 @@ function IDBQueryBuilder(){
 		return range;
 	}
 
-	var prepareQuery = function(tableName, action, where, errorCallback){
-		var objectStore = scope.getObjectStore(tableName, action, function(e){
-  			(errorCallback || console.error)(tableName, e.target ? e.target.error : e);
+	var prepareQuery = async function(tableName, action, where){
+		return new Promise((resolve, reject) => {
+			var objectStore = My.getObjectStore(tableName, action, function(e){
+				reject(e.target ? e.target.error : e);
+			});
+			if(!objectStore) return reject("Internal error");
+
+			var obj = {
+				found:0, // For limiting
+				processed:0 // For limiting
+			};
+
+			if(where.LIMIT != null){
+				if(typeof where.LIMIT === 'number'){
+					obj.startFrom = 0;
+					obj.limit = where.LIMIT;
+				}
+				else{
+					obj.startFrom = where.LIMIT[0];
+					obj.limit = where.LIMIT[1];
+				}
+			}
+			else obj.limit = false;
+			delete where.LIMIT;
+
+			if(where.ORDER != null){
+				var order = where.ORDER;
+				delete where.ORDER;
+
+				var range = null;
+
+				if(typeof order === 'string'){ // ASC
+					if(dbStructure[tableName] != null || dbStructure[tableName][order] != null)
+						var range = findIndexRange(tableName, where, order);
+
+					obj.request = objectStore.index(order).openCursor(range, 'next');
+				}
+				else {
+					var key = Object.keys(order)[0];
+					if(dbStructure[tableName] != null || dbStructure[tableName][key] != null)
+						var range = findIndexRange(tableName, where, key);
+
+					if(order[key] === 'ASC')
+						obj.request = objectStore.index(key).openCursor(range, 'next');
+
+					if(order[key] === 'DESC')
+						obj.request = objectStore.index(key).openCursor(range, 'prev');
+				}
+			}
+
+			// Not ordered
+			else obj.request = findIndexRange(tableName, where, objectStore);
+
+			resolve(obj);
 		});
-
-		var obj = {
-			found:0, // For limiting
-			processed:0 // For limiting
-		};
-
-		if(!objectStore) return;
-
-		if(where.LIMIT !== undefined){
-			if(typeof where.LIMIT === 'number'){
-				obj.startFrom = 0;
-				obj.limit = where.LIMIT;
-			}
-			else{
-				obj.startFrom = where.LIMIT[0];
-				obj.limit = where.LIMIT[1];
-			}
-		}
-		else obj.limit = false;
-		delete where.LIMIT;
-
-		if(where.ORDER !== undefined){
-			var order = where.ORDER;
-			delete where.ORDER;
-
-			var range = null;
-
-			if(typeof order === 'string'){ // ASC
-				if(dbStructure[tableName] !== void 0 || dbStructure[tableName][order] !== void 0)
-					var range = findIndexRange(tableName, where, order);
-
-				obj.request = objectStore.index(order).openCursor(range, 'next');
-			}
-			else {
-				var key = Object.keys(order)[0];
-				if(dbStructure[tableName] !== void 0 || dbStructure[tableName][key] !== void 0)
-					var range = findIndexRange(tableName, where, key);
-
-				if(order[key] === 'ASC')
-					obj.request = objectStore.index(key).openCursor(range, 'next');
-
-				if(order[key] === 'DESC')
-					obj.request = objectStore.index(key).openCursor(range, 'prev');
-			}
-		}
-
-		// Not ordered
-		else obj.request = findIndexRange(tableName, where, objectStore);
-
-		return obj;
 	}
 
 	/*
@@ -254,81 +249,66 @@ function IDBQueryBuilder(){
 			text, number
 		)}
 	*/
-	scope.createTable = function(tableName, columns, successCallback, errorCallback){
+	My.createTable = async function(tableName, columns){
 		if(onStructureInitialize === null)
-			return console.warn("`createTable` is unavailable because the database version need to be changed. Try changing the database structure on first initialization, and increment the version.");
+			throw new Error("`createTable` is unavailable because the database version need to be changed. Try changing the database structure on first initialization, and increment the version.");
 
-		if(scope.db.objectStoreNames.contains(tableName)){
-			if(successCallback) successCallback(scope);
+		if(My.db.objectStoreNames.contains(tableName))
 			return;
-		}
+	
+		for (let column in columns) {
+			var objectStore = My.db.createObjectStore(tableName, {keyPath: 'rowid', autoIncrement: true});
 
-		var columns_ = Object.keys(columns);
-		try{
-			var objectStore = scope.db.createObjectStore(tableName, {keyPath:'rowid', autoIncrement:true});
-			for(var i = 0; i < columns_.length; i++){
-				if(columns_[i][0] !== '$')
-					continue;
+			if(column.slice(0, 1) !== '$')
+				continue;
+			let col = validateText(column);
+			let val = columns[column];
 
-				var col = validateText(columns_[i]);
-				if(columns[columns_[i]] instanceof Array && columns[columns_[i]].length >= 2)
-					objectStore.createIndex(col, col, {unique: columns[columns_[i]][1] === 'unique'});
-				else
-					objectStore.createIndex(col, col, {unique: false});
-			}
-			if(successCallback)
-				successCallback(scope);
-		} catch(e) {
-			if(errorCallback)
-				errorCallback(e);
+			objectStore.createIndex(col, col, {unique: val.unique ?? false});
 		}
 	}
 
-	scope.insert = function(tableName, object, successCallback, errorCallback){
-		if(scope.busy !== false)
-			return scope.busy.push(scope.insert, arguments);
+	My.insert = async function(tableName, object){
+		await My.busy;
+		return await new Promise((resolve, reject) => {
+			var duplicated = false;
+			var objectStore = My.getObjectStore(tableName, "readwrite", function(){
+				if(!duplicated) reject(`"${tableName}" table was not found`);
+			});
 
-		var duplicated = false;
-  		var objectStore = scope.getObjectStore(tableName, "readwrite", function(){
-  			if(!duplicated)
-  				(errorCallback || console.error)(tableName, 'table was not found');
-  		});
-  		if(!objectStore) return;
-
-  		var objectStoreRequest = objectStore.add(object);
-
-	  	objectStoreRequest.onerror = function(){
-	  		duplicated = true;
-	  		(errorCallback || console.error)('duplicate on unique columns');
-	  	};
-
-  		if(successCallback)
-	  		objectStoreRequest.onsuccess = function(ev){
-	  			successCallback(ev.target.result);
-	  		};
+			if(!objectStore) return reject("Failed to retrieve objectStore for: "+tableName);
+  
+			var objectStoreRequest = objectStore.add(object);
+  
+			objectStoreRequest.onerror = function(){
+				duplicated = true;
+				reject(`"${tableName}": duplicate on unique columns`);
+			};
+  
+			objectStoreRequest.onsuccess = function(ev){
+				resolve(ev.target.result);
+			};
+		});
 	}
 
-	scope.has = function(tableName, where, successCallback, errorCallback){
-		if(scope.busy !== false)
-			return scope.busy.push(scope.has, arguments);
+	My.has = async function(tableName, where){
+		await My.busy;
+		return await new Promise(async (resolve, reject) => {
+			var query = await prepareQuery(tableName, "readonly", where, reject);
+			var request = query.request;
 
-  		var query = prepareQuery(tableName, "readonly", where, errorCallback);
-  		if(!query) return;
-  		var request = query.request;
-		request.onerror = errorCallback;
-		request.onsuccess = function(){
-      		var cursor = request.result;
-        	if(cursor){
-      			if(IDBWhere(cursor.value, where)){
-		      		successCallback(true);
-		      		return;
-      			}
-		    	cursor.continue();
-		    }
+			request.onerror = reject;
+			request.onsuccess = function(){
+				var cursor = request.result;
+				if(cursor){
+					if(IDBWhere(cursor.value, where))
+						return resolve(true);
 
-		    // End of rows
-		    else if(successCallback) successCallback(false);
-		};
+					cursor.continue();
+				}
+				else resolve(false); // End of rows
+			};
+		});
 	}
 
 	function rangeBuilder(opt, val){
@@ -336,7 +316,7 @@ function IDBQueryBuilder(){
 			if(val.length === 0)
 				return null;
 
-			val = val[0];
+			val = val.slice(0, 1);
 		}
 
 		if(val.constructor === Array && val[0].constructor === String)
@@ -362,12 +342,11 @@ function IDBQueryBuilder(){
 		return IDBKeyRange.only(val);
 	}
 
-	scope.cursor = function(tableName, where, onScanning, onError){
-		if(scope.busy !== false)
-			return scope.busy.push(scope.cursor, arguments);
+	My.cursor = async function(tableName, where, onScanning, onError){
+		await My.busy;
 
-  		var objectStore = scope.getObjectStore(tableName, where && where.WRITE ? "readwrite" : "readonly", onError);
-  		if(!objectStore) return;
+  		var objectStore = My.getObjectStore(tableName, where && where.WRITE ? "readwrite" : "readonly", onError);
+		if(!objectStore) throw new Error("Failed to retrieve object store for: "+tableName);
 
 		if(where){
 			var direction = where.ORDER === 'desc' ? 'prev' : 'next';
@@ -396,201 +375,177 @@ function IDBQueryBuilder(){
   		return req;
 	}
 
-	scope.get = function(tableName, select, where, successCallback, errorCallback){
-		if(scope.busy !== false)
-			return scope.busy.push(scope.get, arguments);
+	My.get = async function(tableName, select, where){
+		await My.busy;
+		return await new Promise(async (resolve, reject) => {
+			var query = await prepareQuery(tableName, "readonly", where, reject);
+			var request = query.request;
 
-  		var query = prepareQuery(tableName, "readonly", where, errorCallback);
-  		if(!query) return;
+			request.onerror = reject;
+			request.onsuccess = function(){
+				var cursor = request.result;
+				if(cursor){
+					var value = cursor.value;
+					if(IDBWhere(value, where)){
+						if(select === '*')
+							return resolve(value);
 
-  		var request = query.request;
-		request.onerror = errorCallback;
-		request.onsuccess = function(){
-      		var cursor = request.result;
-        	if(cursor){
-      			var value = cursor.value;
-      			if(IDBWhere(value, where)){
-		  			if(select === '*'){
-		      			successCallback(value);
-		  				return;
-		  			}
+						if(select.constructor === String)
+							return resolve(value[select]);
 
-      				if(select.constructor === String){
-      					successCallback(value[select]);
-      					return;
-      				}
+						var temp = {};
+						for (var i = 0; i < select.length; i++) {
+							let ref = select[i];
+							temp[ref] = value[ref];
+						}
 
-		      		var temp = {};
-		      		for (var i = 0; i < select.length; i++) {
-		      			temp[select[i]] = value[select[i]];
-		      		}
-
-		      		successCallback(temp);
-		      		return;
-      			}
-		    	cursor.continue();
-		    }
-
-		    // End of rows
-		    else if(successCallback) successCallback(null);
-		};
+						return resolve(temp);
+					}
+					cursor.continue();
+				}
+				else resolve(null); // End of rows
+			};
+		});
 	}
 
-	scope.select = function(tableName, select, where, successCallback, errorCallback){
-		if(scope.busy !== false)
-			return scope.busy.push(scope.select, arguments);
+	My.select = async function(tableName, select, where){
+		await My.busy;
+		return await new Promise(async (resolve, reject) => {
+			var query = await prepareQuery(tableName, "readonly", where, reject);
+			var request = query.request;
 
-  		var query = prepareQuery(tableName, "readonly", where, errorCallback);
-  		if(!query) return;
+			request.onerror = reject;
+			query.result = []; // Will be returned from success callback
 
-  		var request = query.request;
-		request.onerror = errorCallback;
-		query.result = []; // Will be returned from success callback
+			var operation = function(value){
+				if(select === '*'){
+					query.result.push(value);
+					return;
+				}
 
-  		var operation = function(value){
-  			if(select === '*'){
-      			query.result.push(value);
-  				return;
-  			}
+				if(select.constructor === String){
+					query.result.push(value[select]);
+					return;
+				}
 
-  			if(select.constructor === String){
-      			query.result.push(value[select]);
-      			return;
-  			}
+				var temp = {};
+				for (var i = 0; i < select.length; i++) {
+					let ref = select[i];
+					temp[ref] = value[ref];
+				}
 
-      		var temp = {};
-      		for (var i = 0; i < select.length; i++) {
-      			temp[select[i]] = value[select[i]];
-      		}
-      		query.result.push(temp);
-  		}
+				query.result.push(temp);
+			}
 
-		request.onsuccess = function(){
-      		var cursor = request.result;
-        	if(cursor){
-      			var value = cursor.value;
-      			if(IDBWhere(value, where)){
-      				if(query.limit !== false){
-      					var code = IDBLimit(query);
+			request.onsuccess = function(){
+				var cursor = request.result;
+				if(cursor){
+					var value = cursor.value;
+					if(IDBWhere(value, where)){
+						if(query.limit !== false){
+							var code = IDBLimit(query);
 
-      					if(code === -1){
-      						if(successCallback) successCallback(query.result);
-      						return;
-      					}
-      					else if(code === 1)
-      						operation(value); // Get data
-      				}
-
-      				else operation(value);
-      			}
-		    	cursor.continue();
-		    }
-
-		    // End of rows
-		    else if(successCallback) successCallback(query.result);
-		};
+							if(code === -1)
+								return resolve(query.result);
+							else if(code === 1)
+								operation(value); // Get data
+						}
+						else operation(value);
+					}
+					cursor.continue();
+				}
+				else resolve(query.result); // End of rows
+			};
+		});
 	}
 
-	scope.delete = function(tableName, where, successCallback, errorCallback){
-		if(scope.busy !== false)
-			return scope.busy.push(scope.delete, arguments);
+	My.delete = async function(tableName, where){
+		await My.busy;
+		return await new Promise(async (resolve, reject) => {
+			if(!where){
+				var store = My.getObjectStore(tableName, "readwrite", reject).clear();
+				store.onsuccess = resolve;
+				store.onerror = reject;
+			}
 
-		if(!where){
-			var store = scope.getObjectStore(tableName, "readwrite", errorCallback).clear();
-			store.onsuccess = successCallback;
-			store.onerror = errorCallback;
-			return;
-		}
+			var query = await prepareQuery(tableName, "readwrite", where, reject);
+			var request = query.request;
 
-  		var query = prepareQuery(tableName, "readwrite", where, errorCallback);
-  		if(!query) return;
+			request.onerror = reject;
+			request.onsuccess = function(){
+				var cursor = request.result;
+				if(cursor){
+					var value = cursor.value;
+					if(IDBWhere(value, where)){
+						if(query.limit !== false){
+							var code = IDBLimit(query);
 
-  		var request = query.request;
-		request.onerror = errorCallback;
-		request.onsuccess = function(){
-      		var cursor = request.result;
-        	if(cursor){
-      			var value = cursor.value;
-      			if(IDBWhere(value, where)){
-      				if(query.limit !== false){
-      					var code = IDBLimit(query);
-      					
-      					if(code === -1){
-      						if(successCallback) successCallback(query.processed);
-      						return;
-      					}
-      					else if(code === 1)
-      						cursor.delete(); // Delete data
-      				}
-
-      				else {
-      					query.processed++;
-      					cursor.delete();
-      				}
-      			}
-		    	cursor.continue();
-		    }
-
-		    // End of rows
-		    else if(successCallback) successCallback(query.processed);
-		};
+							if(code === -1)
+								return resolve(query.processed);
+							else if(code === 1)
+								cursor.delete(); // Delete data
+						}
+						else {
+							query.processed++;
+							cursor.delete();
+						}
+					}
+					cursor.continue();
+				}
+				else resolve(query.processed); // End of rows
+			};
+		});
 	}
 
-	scope.update = function(tableName, object, where, successCallback, errorCallback){
-		if(scope.busy !== false)
-			return scope.busy.push(scope.update, arguments);
+	My.update = async function(tableName, object, where){
+		await My.busy;
+		return await new Promise(async (resolve, reject) => {
+			var query = await prepareQuery(tableName, "readwrite", where, reject);
+			var request = query.request;
 
-  		var query = prepareQuery(tableName, "readwrite", where, errorCallback);
-  		if(!query) return;
+			var columns = Object.keys(object);
+			var operation = function(cursor, value){
+				for (var i = 0; i < columns.length; i++) {
+					let temp = columns[i];
+					value[temp] = object[temp];
+				}
+				cursor.update(value);
+			}
 
-  		var request = query.request;
-		request.onerror = errorCallback;
-
-		var columns = Object.keys(object);
-		var operation = function(cursor, value){
-      		for (var i = 0; i < columns.length; i++) {
-      			value[columns[i]] = object[columns[i]];
-      		}
-      		cursor.update(value);
-		}
-
-		request.onsuccess = function(){
-      		var cursor = request.result;
-        	if(cursor){
-      			var value = cursor.value;
-      			if(IDBWhere(value, where)){
-      				if(query.limit !== false){
-      					var code = IDBLimit(query);
-      					
-      					if(code === -1){
-      						if(successCallback) successCallback(query.processed);
-      						return;
-      					}
-      					else if(code === 1)
-      						operation(cursor, value); // Update data
-      				}
-
-      				else {
-      					query.processed++;
-      					operation(cursor, value);
-      				}
-      			}
-		    	cursor.continue();
-		    }
-
-		    // End of rows
-		    else if(successCallback) successCallback(query.processed);
-		};
+			request.onerror = reject;
+			request.onsuccess = function(){
+				var cursor = request.result;
+				if(cursor){
+					var value = cursor.value;
+					if(IDBWhere(value, where)){
+						if(query.limit !== false){
+							var code = IDBLimit(query);
+							
+							if(code === -1)
+								return resolve(query.processed);
+							else if(code === 1)
+								operation(cursor, value); // Update data
+						}
+						else {
+							query.processed++;
+							operation(cursor, value);
+						}
+					}
+					cursor.continue();
+				}
+				else resolve(query.processed); // End of rows
+			};
+		});
 	}
 
-	scope.drop = function(tableName, successCallback, errorCallback){
+	My.drop = function(tableName){
 		if(onStructureInitialize === null)
 			return console.warn("`drop` is unavailable because the database version need to be changed. Try changing the database structure on first initialization, and increment the version.");
 
-		scope.db.deleteObjectStore(tableName);
+		My.db.deleteObjectStore(tableName);
 	}
 
-	scope.closeDatabase = function(){
-		scope.db.close();
+	My.closeDatabase = function(){
+		My.db.close();
 	}
 }

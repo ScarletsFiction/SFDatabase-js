@@ -9,49 +9,47 @@ if(options.websql){
 function WebSQLStructure(initError){
 	SQLQueryBuilder();
 
-	scope.SQLQuery = function(query, values, successCallback, errorCallback){
+	My.SQLQuery = function(query, values){
 		if(options.debug) options.debug(query, values);
 
-		scope.db.transaction(function(tx){
-			tx.executeSql(query, values, function(tx, res){
-				destroyObject(values);
-	            values = query = null;
-
-				if(successCallback){
+		return new Promise(function(resolve, reject){
+			My.db.transaction(function(tx){
+				tx.executeSql(query, values, function(tx, res){
+					destroyObject(values);
+					values = query = null;
+	
 					var readOnly = res && res.rows ? res.rows : res; // SQLResultSetRowList is immutable
 					if(res && res.rowsAffected && !readOnly.length){
-						successCallback(res.rowsAffected);
+						resolve(res.rowsAffected);
 						readOnly = null;
 						return;
 					}
+
 					if(readOnly.length){
-						var result = {length:readOnly.length};
+						var result = new Array(readOnly.length);
 						for (var i = 0; i < readOnly.length; i++) {
 							result[i] = readOnly[i];
 						}
-						readOnly = null;
-						successCallback(result);
-					}
-					else successCallback([]);
-	            }
-			}, function(tx, error){
-				var msg = 'Database Error: ' + error.message;
-				destroyObject(values);
-	            values = query = null;
 
-				if(errorCallback) errorCallback(msg);
-				else console.error(msg);
+						readOnly = null;
+						resolve(result);
+					}
+					else resolve([]);
+				}, function(tx, error){
+					destroyObject(values);
+					values = query = null;
+	
+					reject('Database Error: ' + error.message);
+				});
+			}, function(error){
+				reject('Database Transaction Error: ' + error.message);
 			});
-		}, function(error){
-			var msg = 'Database Transaction Error: ' + error.message;
-			if(errorCallback) errorCallback(msg);
-			else console.error(msg);
 		});
 	}
 
 	function initializeTable(disablePlugin){
 		if(!disablePlugin && window.sqlitePlugin){
-			scope.db = window.sqlitePlugin.openDatabase({name: databaseName, location: 'default'}, checkStructure, function(){
+			My.db = window.sqlitePlugin.openDatabase({name: databaseName, location: 'default'}, checkStructure, function(){
 				console.error_("Failed to initialize sqlitePlugin");
 				setTimeout(function(){
 					initializeTable(true);
@@ -59,8 +57,8 @@ function WebSQLStructure(initError){
 			});
 		}
 		else if(window.openDatabase){
-			scope.db = window.openDatabase(databaseName, "1.0", databaseName, 1024);
-			if(scope.db) setTimeout(checkStructure, 500);
+			My.db = window.openDatabase(databaseName, "1.0", databaseName, 1024);
+			if(My.db) setTimeout(checkStructure, 500);
 		}
 		else{
 			console.error('WebSQL is not supported on this browser');
