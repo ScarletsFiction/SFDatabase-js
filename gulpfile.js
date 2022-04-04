@@ -3,7 +3,7 @@ var concat = require('gulp-concat');
 var sourcemaps = require('gulp-sourcemaps');
 var browserSync = require('browser-sync');
 var reload = browserSync.reload;
-var uglify = require('gulp-uglify-es').default;
+var terser = require('gulp-terser');
 var header = require('gulp-header');
 var babel = require('gulp-babel');
 
@@ -22,23 +22,24 @@ var nodejs = ['src/_head.js',
 gulp.task('browserjs', function(){
   return gulp.src(browserjs)
     .pipe(sourcemaps.init())
-    .pipe(concat('SFDatabase.min.js'))
+    .pipe(concat('sfdatabase.min.js'))
     .pipe(babel({
       "presets": [
         [
           "@babel/preset-env",
           {
             "targets": {
-              "ie": "11"
+              "chrome": "50"
             },
-            "loose":true,
-            "modules": false
+            "modules": false,
+            "loose": false,
+            "shippedProposals": true
           }
         ]
       ]
     }))
     .on('error', swallowError)
-    .pipe(uglify())
+    .pipe(terser())
     .on('error', swallowError)
     .pipe(header(`/*
   SFDatabase-js
@@ -57,7 +58,7 @@ gulp.task('browserjs', function(){
 gulp.task('nodejs', function(){
   return gulp.src(nodejs)
     .pipe(sourcemaps.init())
-    .pipe(concat('SFDatabase.node.js'))
+    .pipe(concat('sfdatabase.node.js'))
     .on('error', swallowError)
     .pipe(header(`/*
   SFDatabase-js
@@ -77,12 +78,22 @@ gulp.task('watch', function() {
 
 gulp.task('serve', function() {
   browserSync({
+		ghostMode: false, // Use synchronization between browser?
+		ui: false,
+		open: false,
     server: {
-      baseDir: 'example'
+      baseDir: 'example',
+      routes: {
+          "/dist": "dist"
+      }
     }
   });
 
-  gulp.watch(['*.html', 'scripts/**/*.js'], {cwd: 'example'}, reload);
+  console.log("Please modify one file from /src to trigger the first build");
+  // gulp.watch(['*.html', 'src/**/*.js'], {cwd: 'example'}, reload);
+  gulp.watch(['*.html', 'src/**/*.js'], gulp.parallel([
+    'browserjs', 'nodejs'
+  ]));
 });
 
 gulp.task('default', gulp.parallel(['browserjs', 'nodejs']));
