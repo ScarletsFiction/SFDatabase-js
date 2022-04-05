@@ -7,7 +7,25 @@ function SQLQueryBuilder(){
 	}
 
 	function copyObject(obj){
-		return JSON.parse(JSON.stringify(obj));
+		let temp = {};
+		deepCopy(temp, obj);
+		return temp;
+	}
+
+	function deepCopy(target, source){
+		for(var key in source){
+			if(typeof source[key] === 'object'){
+				if(source[key] instanceof Array)
+					target[key] = [];
+				else
+					target[key] = {};
+
+				deepCopy(target[key], source[key]);
+				continue;
+			}
+
+			target[key] = source[key];
+		}
 	}
 
 	//{('AND', 'OR'), 'ORDER':{columnName:'ASC', 'DESC'}, 'LIMIT':[startIndex, rowsLimit]}

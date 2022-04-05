@@ -1,4 +1,4 @@
-if(!isNode && !options.websql){
+if(!isNode && options.idbVersion != null){
 	var iDBError = function(ev){
 		console.error((ev.target && ev.target.error.message) || ev);
 	}
@@ -29,11 +29,10 @@ function IDBStructure(initError){
 		return;
 	}
 
-	My.busy = false;
 	My.storage = 'indexeddb';
 	My.reopen = function(){
 		onStructureInitialize = function(){
-			if(!options.websql){ // IndexedDB
+			if(options.idbVersion != null){ // IndexedDB
 				var db = My.db.objectStoreNames;
 				for (var i = 0; i < db.length; i++) {
 					if(options.structure[db[i]] === void 0)
@@ -44,12 +43,11 @@ function IDBStructure(initError){
 			onStructureInitialize = null;
 		};
 
-		My.db = window.indexedDB.open(databaseName, options.idbVersion || 1);
+		My.db = window.indexedDB.open(databaseName, options.idbVersion);
 		My.db.onupgradeneeded = My.db.onversionchange = onVersionChange;
 		My.db.onsuccess = function(ev){
-			if(My.db.result){
+			if(My.db.result)
 				My.db = My.db.result;
-			}
 
 			initFinish(My);
 		};
@@ -63,20 +61,21 @@ function IDBStructure(initError){
 		My.busy = new Promise(resolve => {
 			checkStructure(function(){
 				if(!My.busy) return;
-				resolve();
 				My.busy = false;
+				resolve();
 			});
 		});
 	}
 
-	//action = readwrite, readonly
+	// action = readwrite, readonly
 	My.getObjectStore = function(tableName, action, errorCallback){
 		try{
   			var transaction = My.db.transaction(tableName, action);
-		}catch(e){
+		} catch(e) {
 			if(errorCallback) errorCallback(e)
 			return;
 		}
+
   		transaction.onerror = errorCallback || iDBError;
   		return transaction.objectStore(tableName);
 	}

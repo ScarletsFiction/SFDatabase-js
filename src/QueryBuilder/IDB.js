@@ -3,7 +3,7 @@ function IDBQueryBuilder(){
 	// As a query when opening cursor https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/openCursor
 	var IDBWhere = function(data, rules, ORCondition){
 		var currentCondition = ORCondition ? false : true;
-		for (let key in rules) { // All operation here are focus on performance
+		for (let key in rules) {
 			var matches = key.match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
 			var check = matches[1].toLowerCase();
 			if(check === 'AND' || check === 'OR') continue;
@@ -64,17 +64,17 @@ function IDBQueryBuilder(){
 					operationCondition = false; // When "not between 2 value or equal"
 			}
 
-			else if(matches[3] === '=><='){ // Between 2 value
+			else if(matches[3] === '=><='){ // Between 2 value or equal
 				if(data[matches[1]] < rule[0] || data[matches[1]] > rule[1])
 					operationCondition = false; // When "not between 2 value"
 			}
 
-			else if(matches[3] === '<>'){ // Not between than 2  value
+			else if(matches[3] === '<>'){ // Not between than 2 value
 				if(data[matches[1]] >= rule[0] || data[matches[1]] <= rule[1])
 					operationCondition = false; // When "between 2 value or equal"
 			}
 
-			else if(matches[3] === '<=>'){ // Not between than 2  value
+			else if(matches[3] === '<=>'){ // Not between than 2 value and not equal
 				if(data[matches[1]] > rule[0] || data[matches[1]] < rule[1])
 					operationCondition = false; // When "between 2 value"
 			}
@@ -250,17 +250,18 @@ function IDBQueryBuilder(){
 		)}
 	*/
 	My.createTable = async function(tableName, columns){
-		if(onStructureInitialize === null)
+		if(!My._restructuring)
 			throw new Error("`createTable` is unavailable because the database version need to be changed. Try changing the database structure on first initialization, and increment the version.");
 
 		if(My.db.objectStoreNames.contains(tableName))
 			return;
 	
-		for (let column in columns) {
-			var objectStore = My.db.createObjectStore(tableName, {keyPath: 'rowid', autoIncrement: true});
+		var objectStore = My.db.createObjectStore(tableName, {keyPath: 'rowid', autoIncrement: true});
 
+		for (let column in columns) {
 			if(column.slice(0, 1) !== '$')
 				continue;
+
 			let col = validateText(column);
 			let val = columns[column];
 
@@ -539,7 +540,7 @@ function IDBQueryBuilder(){
 	}
 
 	My.drop = function(tableName){
-		if(onStructureInitialize === null)
+		if(!My._restructuring)
 			return console.warn("`drop` is unavailable because the database version need to be changed. Try changing the database structure on first initialization, and increment the version.");
 
 		My.db.deleteObjectStore(tableName);

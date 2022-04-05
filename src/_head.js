@@ -7,13 +7,18 @@
 */
 
 'use strict';
-function SFDatabase(databaseName, options, onConnected){
+function SFDatabase(databaseName, options){
 	var My = this;
 	My.db = null;
-	My.pending = [];
+
+	let resolveBusy;
+	My.busy = new Promise(r => resolveBusy = r);
+
 	My.initialized = false;
 	if(options.databaseStructure)
 		console.warn('`options.databaseStructure` is deprecated, please use `options.structure` instead.');
+
+	let onConnected = options.onInit;
 
 	if(!options.structure)
 		options.structure = options.databaseStructure;
@@ -27,25 +32,11 @@ function SFDatabase(databaseName, options, onConnected){
 
 		if(onConnected){
 			setTimeout(function(){
-				if(!onConnected(resumePending))
-					resumePending();
+				onConnected();
+				resolveBusy();
 			}, 1);
 		}
-		else resumePending();
-	}
-
-	var pendingTimer = -1;
-	var resumePending = function(){
-		if(!My.db){
-			clearTimeout(pendingTimer);
-			pendingTimer = setTimeout(resumePending, 1000);
-			return;
-		}
-		if(!My.pending.length) return;
-		for (var i = 0; i < My.pending.length; i++) {
-			My.pending[i]();
-		}
-		My.pending.splice(0);
+		else resolveBusy();
 	}
 
 	var destroyObject = function(obj){
@@ -87,9 +78,11 @@ function SFDatabase(databaseName, options, onConnected){
 				onStructureInitialize = null;
 			}
 
+			My._restructuring = true;
 			for (const table in object) {
 				await My.createTable(table, options.structure[table]);
 			}
+			My._restructuring = false;
 
 			if(!callback) initFinish(My);
 			else callback();

@@ -1,4 +1,4 @@
-if(options.websql){
+if(options.idbVersion == null){
 	WebSQLStructure(function(){
 		// Fallback to IndexedDB
 		console.warn("Fallback to IndexedDB");
@@ -10,9 +10,9 @@ function WebSQLStructure(initError){
 	SQLQueryBuilder();
 
 	My.SQLQuery = function(query, values){
-		if(options.debug) options.debug(query, values);
-
 		return new Promise(function(resolve, reject){
+			if(options.debug) options.debug(query, values);
+
 			My.db.transaction(function(tx){
 				tx.executeSql(query, values, function(tx, res){
 					destroyObject(values);

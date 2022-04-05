@@ -16,9 +16,9 @@ function MySQLStructure(initError){
 		console.log("Connecting to "+databaseName+" database");
 
 	My.SQLQuery = function(query, values){
-		if(options.debug) options.debug(query, values);
-
 		return new Promise(function(resolve, reject){
+			if(options.debug) options.debug(query, values);
+
 			My.db.getConnection(function(err1, connection){
 				if(err1) return reject(err1);
 
