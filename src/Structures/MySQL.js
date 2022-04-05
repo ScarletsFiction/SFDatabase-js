@@ -5,10 +5,10 @@ function MySQLStructure(initError){
 
 	var mysql = require('mysql');
 	My.db = mysql.createPool({
-		host:options.host?options.host:'localhost',
-		user:options.user?options.user:'root',
-		password:options.password?options.password:'',
-		database:databaseName
+		host: options.host ? options.host : 'localhost',
+		user: options.user ? options.user : 'root',
+		password: options.password ? options.password : '',
+		database: databaseName
 	});
 
 	if(onConnected) My.db.on('connection', initFinish);

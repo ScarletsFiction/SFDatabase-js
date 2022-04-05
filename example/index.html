@@ -1,7 +1,7 @@
 <!DOCTYPE html><html><head>
   <title>SFDatabase Browser</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/themes/prism.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/themes/prism-okaidia.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.15.0/themes/prism.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.15.0/themes/prism-okaidia.min.css" />
   <script src="./../dist/sfdatabase.min.js?1"></script>
 </head><body>
 
@@ -11,81 +11,79 @@ Use CTRL + F5 to refresh if you're editing this source
 <br>
 <br>
 
-<pre><code class="language-js">// Available Usage
-var preprocessTable = {
-	test:{ // Table name
-		data:{ // Column name
-			set:JSON.stringify, // On insert or update
-			get:JSON.parse // On select
-		}
-	}
-};
-myDB.preprocessTable = preprocessTable;
-
+<pre><code class="language-js">
 // CREATE TABLE IF NOT EXISTS test (id NUMBER, name TEXT, data TEXT, words TEXT)
 // createTable(table, fields, onSuccess, onError);
-myDB.createTable('test', {id:{type: 'number', unique: true}, name:'text', data:'text', words:'text'}, console.warn);
+await myDB.createTable('test', {id:{type: 'number', unique: true}, name:'text', data:'text', words:'text'});
 
 // INSERT INTO test (id, name, words) VALUES (?, ?, ?)
 // insert(table, fields, onSuccess, onError);
-myDB.insert("test", {id:1, name:"abc", words:'hey'}, console.warn);
+await myDB.insert("test", {id:1, name:"abc", words:'hey'});
 
 // UPDATE test SET name = ?, data = ? WHERE (id = ? AND (name = ? OR name = ?))
 // update(table, fields, where, onSuccess, onError);
-myDB.update("test", {'name':'zxc', data:{any:[1,2,3]}}, {AND:{id:1, OR:{name:'abc', 'name#1':'zxc'}}}, console.warn);
+await myDB.update("test", {'name':'zxc', data:{any:[1,2,3]}}, {AND:{id:1, OR:{name:'abc', 'name#1':'zxc'}}});
 
 // SELECT name, data FROM test WHERE (id = ? OR (words LIKE ?)) LIMIT 1
 // select(table, fields, where, onSuccess, onError);
-myDB.select("test", ['name', 'data'], {OR:{id:321, 'words[~]':'hey'}, LIMIT:1}, console.warn);
+await myDB.select("test", ['name', 'data'], {OR:{id:321, 'words[~]':'hey'}, LIMIT:1});
 
 // SELECT name FROM test WHERE (rowid = ? AND (name = ? OR name = ?) AND (id IN (?, ?, ?) OR data IS NOT NULL))
-myDB.select("test", ['name'], {AND:{rowid:1, OR:{name:'abc', 'name#1':'zxc'}, 'OR#1':{id:[1,2,null], 'data[!]':null}}}, console.warn);
+await myDB.select("test", ['name'], {AND:{rowid:1, OR:{name:'abc', 'name#1':'zxc'}, 'OR#1':{id:[1,2,null], 'data[!]':null}}});
 
 // DELETE FROM test WHERE (name LIKE ?)
 // delete(table, where, onSuccess, onError);
-myDB.delete("test", {'name[~]':"%xc"}, console.warn);
+await myDB.delete("test", {'name[~]':"%xc"});
 
 // TRUNCATE TABLE test
-myDB.delete("test", 0, console.warn);
-myDB.drop("test", console.warn);
+await myDB.delete("test", 0);
+await myDB.drop("test");
 </code></pre>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/prism.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.15.0/prism.min.js"></script>
 <script type="text/javascript">
-	var preprocessTable = {
-		test:{ // Table name
-			data:{ // Column name
-				set:JSON.stringify, // On insert or update
-				get:JSON.parse // On select
+	var myDB = new SFDatabase('MyDatabaseName', {
+		// If you want to use WebSQL, you need to remove this field
+		idbVersion: 1,
+
+		// For SQL only
+		debug(query, data){ console.log("Query: " + query, data) },
+
+		// For server side SQL database
+		// host: "localhost",
+		// user: "root",
+		// password: "",
+
+		// For IndexedDB, if change this structure you need to change the version
+		// For SQL, you can just change this only
+		// The library will automatically restructure your database if have permission
+		// So.. don't forget to do backup before changing the structure
+		structure: {
+			// Table fields
+			test: {
+				// Column fields
+				id: ['number', 'unique'],
+				name: 'text',
+				data: 'text',
+				words: 'text'
 			}
-		}
-	};
+		},
+		preprocess: {
+			// Table name
+			test: {
+				// Column name
+				data: {
+					set: JSON.stringify, // On insert or update
+					get: JSON.parse // On select
+				}
+			}
+		},
 
-	var options = {
-		websql:true,
-   		idbVersion:1,
-		debug(query, data){
-			console.log("Query: "+query, data);
-		}
-	};
-
-	// Make sure you define the database structure for initialization on the browser
-	// The table will automatically created
-	options.databaseStructure = {
-		test:{
-			id:['number', 'unique'],
-			name:'text',
-			data:'text',
-			words:'text'
-		}
-	};
-
-	var myDB = new SFDatabase('yourDatabaseName', options, function(){
-		console.log('Database Initialized!');
-		queryTest();
+		// This will be called after the database was initialized
+		// onInit: () => queryTest(),
 	});
-	myDB.preprocessTable = preprocessTable;
 
+	queryTest();
 	async function queryTest(){
 		await myDB.insert("test", {id:1, name:"abc", words:'hey all'});
 		await myDB.update("test", {'name':'zxc', data:{any:[1,2,3]}}, {id:1, OR:{name:'abc', 'name#1':'zxc'}});
@@ -95,15 +93,5 @@ myDB.drop("test", console.warn);
 
 		let affected = await myDB.delete("test", {'name[~]':"%xc"});
 		console.log(affected+" data was deleted");
-	}
-
-	// Use this if you think there are memory leak in this library
-	var stressRunning = 0;
-	function stressTest(){
-		console.log = function(){}; // Avoid console memory leak because the result will be referenced on console window
-		stressRunning = setInterval(queryTest, 500);
-	}
-	function stressStop(){
-		clearInterval(stressRunning);
 	}
 </script></body></html>
