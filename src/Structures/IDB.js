@@ -68,7 +68,7 @@ function IDBStructure(initError){
 	}
 
 	// action = readwrite, readonly
-	My.getObjectStore = function(tableName, action, errorCallback){
+	My.prepareTransaction = function(tableName, action, errorCallback){
 		try{
   			var transaction = My.db.transaction(tableName, action);
 		} catch(e) {
@@ -77,6 +77,10 @@ function IDBStructure(initError){
 		}
 
   		transaction.onerror = errorCallback || iDBError;
-  		return transaction.objectStore(tableName);
+  		return transaction;
+	}
+	
+	My.getObjectStore = function(tableName, action, errorCallback){
+  		return My.prepareTransaction(tableName, action, errorCallback).objectStore(tableName);
 	}
 }

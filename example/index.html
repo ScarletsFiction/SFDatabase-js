@@ -87,11 +87,22 @@ await myDB.drop("test");
 	async function queryTest(){
 		await myDB.insert("test", {id:1, name:"abc", words:'hey all'});
 		await myDB.update("test", {'name':'zxc', data:{any:[1,2,3]}}, {id:1, OR:{name:'abc', 'name#1':'zxc'}});
-		
+
 		let rows = await myDB.select("test", ['name', 'data'], {OR:{id:321, 'words[~]':'hey'}, LIMIT:1});
 		console.log("Result:", rows[0]);
 
-		let affected = await myDB.delete("test", {'name[~]':"%xc"});
+		await myDB.bulkInsert("test", [
+			{id:2, name:"abc", words:'hey all'},
+			{id:3, name:"abc", words:'hey all'},
+			{id:4, name:"abc", words:'hey all'},
+			{id:5, name:"abc", words:'hey all'},
+			{id:6, name:"abc", words:'hey all'},
+		]);
+
+		rows = await myDB.select("test", ['name', 'data'], {OR:{id:321, 'words[~]':'hey'}});
+		console.log("Result:", rows);
+
+		let affected = await myDB.delete("test", {OR: {'name[~]':"%xc", 'words[~]':"hey"}});
 		console.log(affected+" data was deleted");
 	}
 </script></body></html>

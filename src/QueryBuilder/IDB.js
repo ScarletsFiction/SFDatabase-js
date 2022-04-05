@@ -1,10 +1,13 @@
 function IDBQueryBuilder(){
+	let whereCache = {};
+
 	// Optimize with https://developer.mozilla.org/en-US/docs/Web/API/IDBKeyRange
 	// As a query when opening cursor https://developer.mozilla.org/en-US/docs/Web/API/IDBObjectStore/openCursor
 	var IDBWhere = function(data, rules, ORCondition){
 		var currentCondition = ORCondition ? false : true;
 		for (let key in rules) {
-			var matches = key.match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
+			var matches = whereCache[key] ??= key.match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
+
 			var check = matches[1].toLowerCase();
 			if(check === 'AND' || check === 'OR') continue;
 
@@ -289,6 +292,28 @@ function IDBQueryBuilder(){
 			objectStoreRequest.onsuccess = function(ev){
 				resolve(ev.target.result);
 			};
+		});
+	}
+
+	My.bulkInsert = async function(tableName, arrayOfObject){
+		await My.busy;
+		return await new Promise((resolve, reject) => {
+			var duplicated = false;
+			var transaction = My.prepareTransaction(tableName, "readwrite", function(){
+				if(!duplicated) reject(`"${tableName}" table was not found`);
+			});
+
+			if(!transaction) return reject("Failed to retrieve transaction for: "+tableName);
+  
+			let objectStore = transaction.objectStore(tableName);
+			for (let i = 0; i < arrayOfObject.length; i++) {
+				objectStore.add(arrayOfObject[i]).onerror = function(){
+					duplicated = true;
+					console.error(`"${tableName}": duplicate on unique columns`);
+				}
+			}
+
+			transaction.oncomplete = ()=> resolve();
 		});
 	}
 

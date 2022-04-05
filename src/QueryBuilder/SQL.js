@@ -72,7 +72,7 @@ function SQLQueryBuilder(){
 							for (var a = 0; a < value.length; a++) {
 								temp.push('?');
 							}
-							wheres.push(matches[1] + ' NOT IN ('+ temp.join(', ') +')');
+							wheres.push(matches[1] + ' NOT IN ('+ temp.join(',') +')');
 							objectData = objectData.concat(value);
 						}
 						else if(type === Number || type === Boolean || type === String){
@@ -108,7 +108,7 @@ function SQLQueryBuilder(){
 						for (var a = 0; a < value.length; a++) {
 							temp.push('?');
 						}
-						wheres.push(matches[1] + ' IN ('+ temp.join(', ') +')');
+						wheres.push(matches[1] + ' IN ('+ temp.join(',') +')');
 						objectData = objectData.concat(value);
 					}
 					else if(type === Number || type === Boolean || type === String){
@@ -156,7 +156,7 @@ function SQLQueryBuilder(){
 				stack.push(validateText(columns) + ' ' + order);
 			}
 
-			options = options + ' ORDER BY ' + stack.join(', ');
+			options = options + ' ORDER BY ' + stack.join(',');
 		}
 		if(object.LIMIT){
 			if(!isNaN(object.LIMIT[0]) && !isNaN(object.LIMIT[1])){
@@ -184,7 +184,7 @@ function SQLQueryBuilder(){
 			else
 				columns_[i] = validateText(columns_[i]) + ' ' + String(columns[columns_[i]]).toUpperCase();
 		}
-		var query = 'CREATE TABLE IF NOT EXISTS '+validateText(tableName)+' ('+columns_.join(', ')+')';
+		var query = 'CREATE TABLE IF NOT EXISTS '+validateText(tableName)+' ('+columns_.join(',')+')';
 
 		return await My.SQLQuery(query, []);
 	}
@@ -204,7 +204,7 @@ function SQLQueryBuilder(){
 		else select_ = false;
 
 		var wheres = My.makeWhere(where);
-		var query = "SELECT " + (select_?select_.join(', '):select) + " FROM " + validateText(tableName) + wheres[0];
+		var query = "SELECT " + (select_ ? select_.join(',') : select) + " FROM " + validateText(tableName) + wheres[0];
 
 		let data = await My.SQLQuery(query, wheres[1]);
 		if(data.length !== 0 && preprocessData(tableName, 'get', data[0])){
@@ -268,7 +268,7 @@ function SQLQueryBuilder(){
 			objectData.push(object_[key]);
 		}
 
-		var query = "INSERT INTO " + validateText(tableName) + " (" + objectName.join(', ') + ") VALUES (" + objectName_.join(', ') + ")";
+		var query = "INSERT INTO " + validateText(tableName) + " (" + objectName.join(',') + ") VALUES (" + objectName_.join(',') + ")";
 		return await My.SQLQuery(query, objectData);
 	}
 
@@ -284,7 +284,7 @@ function SQLQueryBuilder(){
 			objectData.push(object_[key]);
 		}
 
-		var query = "UPDATE " + validateText(tableName) + " SET " + objectName.join(', ') + wheres[0];
+		var query = "UPDATE " + validateText(tableName) + " SET " + objectName.join(',') + wheres[0];
 		return await My.SQLQuery(query, objectData.concat(wheres[1]));
 	}
 
