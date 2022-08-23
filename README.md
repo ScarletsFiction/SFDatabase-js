@@ -1,4 +1,3 @@
-[![Written by](https://img.shields.io/badge/Written%20by-ScarletsFiction-%231e87ff.svg)](LICENSE)
 [![Software License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
 # SFDatabase-js
@@ -204,4 +203,3 @@ If you want to help in SFDatabase-js library, please fork this project and edit 
 
 ## License
 SFDatabase-js is under the MIT license.
-Don't forget to put the a link to this repository :)
