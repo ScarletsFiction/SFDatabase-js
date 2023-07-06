@@ -13,31 +13,42 @@ function SFDatabase(databaseName, options){
 
 	let resolveBusy;
 	My.busy = new Promise(r => resolveBusy = r);
-
+	My.onError = options.onError;
+	
 	My.initialized = false;
-	if(options.databaseStructure)
-		console.warn('`options.databaseStructure` is deprecated, please use `options.structure` instead.');
-
 	let onConnected = options.onInit;
-
-	if(!options.structure)
-		options.structure = options.databaseStructure;
-
-	if(!options)
-		options = {debug:false};
+	if(!options) options = {debug:false};
 
 	var initFinish = function(){
 		if(My.initialized) return;
 		My.initialized = true;
 
+		function resolve(){
+			resolveBusy();
+			for (let i=0; i < onInitWait.length; i++) 
+				onInitWait[i]();
+
+			onInitWait = null;
+			_waitInit();
+		}
+
 		if(onConnected){
 			setTimeout(function(){
 				onConnected();
-				resolveBusy();
+				resolve();
 			}, 1);
 		}
-		else resolveBusy();
+		else resolve();
 	}
+
+	let onInitWait = [];
+	My.onInit = function(callback){
+		if(My.initialized) return callback();
+		onInitWait.push(callback);
+	}
+
+	let _waitInit;
+	My.waitInit = new Promise(r => _waitInit = r);
 
 	var destroyObject = function(obj){
 		if(!obj || typeof obj !== 'object') return;
@@ -52,8 +63,9 @@ function SFDatabase(databaseName, options){
 		obj = null;
 	}
 
-	My.preprocessTable = {}; // {tableName:{columnName:{set:function, get:function}}}}
-	var preprocessData = function(tableName, mode, object){
+	// {tableName:{columnName:{set:function, get:function}}}}
+	My.preprocessTable = options.preprocessTable || {};
+	var preprocessData = function(tableName, mode, object, isUpdate=false){
 		var found = false;
 		if(!My.preprocessTable[tableName]) return found;
 
@@ -61,31 +73,34 @@ function SFDatabase(databaseName, options){
 		for (var i = 0; i < keys.length; i++) {
 			if(!object[keys[i]] || !My.preprocessTable[tableName][keys[i]][mode])
 				continue;
-			object[keys[i]] = My.preprocessTable[tableName][keys[i]][mode](object[keys[i]]);
+			object[keys[i]] = My.preprocessTable[tableName][keys[i]][mode](object[keys[i]], isUpdate);
 			found = true;
 		}
 		return found;
 	}
 
-	var isNode = typeof process !== 'undefined' && process.execPath;
-	if(!isNode){
-		var onStructureInitialize = null;
-		var checkStructure = async function(callback){
-			let object = options.structure;
+	var onStructureInitialize = null;
+	var checkStructure = async function(callback){
+		let object = options.structure;
 
-			if(onStructureInitialize){
-				onStructureInitialize();
-				onStructureInitialize = null;
-			}
-
-			My._restructuring = true;
-			for (const table in object) {
-				await My.createTable(table, options.structure[table]);
-			}
-			My._restructuring = false;
-
-			if(!callback) initFinish(My);
-			else callback();
+		if(onStructureInitialize){
+			onStructureInitialize();
+			onStructureInitialize = null;
 		}
+
+		My._restructuring = true;
+		try {
+			for (var table in object) {
+				await My.createTable(table, object[table]);
+			}
+		} catch(e) {
+			console.error(e);
+			throw e;
+		}
+		My._restructuring = false;
+
+		if(!callback) initFinish(My);
+		else callback();
 	}
+
 	// Load all query builder from here

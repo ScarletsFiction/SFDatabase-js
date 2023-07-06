@@ -39,9 +39,11 @@ function WebSQLStructure(initError){
 					destroyObject(values);
 					values = query = null;
 	
+					if(error && My.onError) My.onError(error);
 					reject('Database Error: ' + error.message);
 				});
 			}, function(error){
+				if(error && My.onError) My.onError(error);
 				reject('Database Transaction Error: ' + error.message);
 			});
 		});
@@ -50,7 +52,7 @@ function WebSQLStructure(initError){
 	function initializeTable(disablePlugin){
 		if(!disablePlugin && window.sqlitePlugin){
 			My.db = window.sqlitePlugin.openDatabase({name: databaseName, location: 'default'}, checkStructure, function(){
-				console.error_("Failed to initialize sqlitePlugin");
+				console.error("Failed to initialize sqlitePlugin");
 				setTimeout(function(){
 					initializeTable(true);
 				}, 500);

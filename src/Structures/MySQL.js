@@ -20,9 +20,12 @@ function MySQLStructure(initError){
 			if(options.debug) options.debug(query, values);
 
 			My.db.getConnection(function(err1, connection){
+				if(err1 && My.onError) My.onError(err1);
 				if(err1) return reject(err1);
 
 				connection.query(query, values, function(err, rows){
+					if(err && My.onError) My.onError(err);
+
 					connection.release();
 					destroyObject(values);
 
