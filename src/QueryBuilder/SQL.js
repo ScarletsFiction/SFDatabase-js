@@ -5,6 +5,12 @@ function SQLQueryBuilder(){
 		var matches = text.match(/[a-zA-Z0-9_\.]+/i);
 		return '`'+matches[0]+'`';
 	}
+	
+	function extractSpecial(field){ // [columnName, operation]
+		field = field.split('#')[0].trim();
+		if(field.includes('[') === false) return [field];
+		return field.replace(/[\]"'`]/g, '').split('[');
+	}
 
 	function copyObject(obj){
 		let temp = {};
@@ -32,6 +38,8 @@ function SQLQueryBuilder(){
 
 	// ex: ["AND"=>["id"=>12, "OR"=>["name#1"=>"myself", "name"=>"himself"]], "LIMIT"=>1]
 		// Select one where (id == 12 && (name == "myself" || name == "himself"))
+	var operMoreLess = ['>', '>=', '<', '<='];
+	var mathOperations = ['*', '-', '/', '%', '+'];
 	My.makeWhere = function(object, comparator, children){
 		if(!object) return ['', []];
 		var wheres = [];
@@ -45,77 +53,137 @@ function SQLQueryBuilder(){
 			let key = columns[i];
 			var value = object[key];
 
-			var matches = key.match(/([a-zA-Z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~)\])?/);
+			var matches = key.match(/([a-z0-9_\.]+)(\[(\>\=?|\<\=?|\!|\<\>|\>\<|\!?~|\!?&~|\!?,|\!?&,|REGEXP|LENGTH)\])?/i);
+			var columnName = matches[1];
 			var check = matches[1].toLowerCase();
 			if(check === 'and' || check === 'or') continue;
 			if(!children && specialList.includes(check)) continue;
 
-			if(matches[3]){
-				if((['>', '>=', '<', '<=']).includes(matches[3])) {
+			columnName = validateText(columnName);
+			let operation = matches[3];
+
+			if(operation){
+				if(operMoreLess.includes(operation)) {
 					if(!isNaN(value)) {
-						wheres.push(matches[1] + ' ' + matches[3] + ' ?');
+						wheres.push(columnName + ' ' + operation + ' ?');
 						objectData.push(value);
 						continue;
 					}
 					else {
-						var msg = 'SQL where: value of ' + matches[1] + ' is non-numeric and can\'t be accepted';
+						var msg = 'SQL where: value of ' + columnName + ' is non-numeric and can\'t be accepted';
 						console.error(msg);
 					}
 				}
-				else if(matches[3] === '!') {
+				else if(operation === '!') {
 					var type = value === null || value === undefined ? false : value.constructor;
 					if(!type)
-						wheres.push(matches[1] + ' IS NOT NULL');
+						wheres.push(columnName + ' IS NOT NULL');
 					else {
 						if(type === Array){
 							var temp = [];
 							for (var a = 0; a < value.length; a++) {
 								temp.push('?');
 							}
-							wheres.push(matches[1] + ' NOT IN ('+ temp.join(',') +')');
+							wheres.push(columnName + ' NOT IN ('+ temp.join(',') +')');
 							objectData = objectData.concat(value);
 						}
 						else if(type === Number || type === Boolean || type === String){
-							wheres.push(matches[1] + ' != ?');
+							wheres.push(columnName + ' != ?');
 							objectData.push(value);
 						}
 						else
-							console.error('SQL where: value ' + matches[1] + ' with type ' + type.name + ' can\'t be accepted');
+							console.error('SQL where: value ' + columnName + ' with type ' + type.name + ' can\'t be accepted');
 					}
 				}
-				else if(matches[3] === '~' || matches[3] === '!~') {
-					if(value.constructor !== Array){
-						value = [value];
-					}
+				else if(operation.endsWith('~')) {
+					if(value.constructor !== Array) value = [value];
+
+					var OR = operation.includes('&') ? ' AND ' : ' OR ';
+					var NOT = operation.includes('!') ? ' NOT' : '';
 
 					var likes = [];
 					for (var a = 0; a < value.length; a++) {
-						likes.push(matches[1] + (matches[3] === '!~' ? ' NOT' : '') + ' LIKE ?');
+						likes.push(columnName + NOT + ' LIKE ?');
 						if(value[a].includes('%') === false) value[a] = '%'+value[a]+'%';
 						objectData.push(value[a]);
 					}
 
-                    wheres.push('('+likes.join(' OR ')+')');
+					wheres.push('('+likes.join(OR)+')');
+				}
+				else if(operation.endsWith(',')){
+					var OR = operation.includes('&') ? ' AND ' : ' OR ';
+					var NOT = operation.includes('!') ? ' NOT' : '';
+
+					if(value.constructor !== Array) {
+						if(value.length > 2 && OR === ' OR '){
+							var like;
+							if(NOT !== '' && driver === 'pgsql')
+								like = ' !~ ?';
+							else like = " NOT REGEXP ?";
+
+							wheres.push(columnName + like);
+							objectData.push(',(' + value.join('|') + '),');
+						}
+						else {
+							var tempValue = [];
+							for (var a = 0; a < value.length; a++) {
+								tempValue.push(columnName + NOT + " LIKE ?");
+								objectData.push("%," + value[a] + ",%");
+							}
+							wheres.push(tempValue.join(OR));
+						}
+					}
+					else{
+						if(OR === ' AND ')
+							throw new Error(`SQL where: value of ${validatedColumn} must be a array`);
+
+						wheres.push(validatedColumn + NOT + " LIKE ?");
+						objectData.push("%," + value + ",%");
+					}
+				}
+				else { // Special feature
+					operation = operation.toUpperCase();
+
+					if(operation.includes('LENGTH')){
+						var op = operation.split('(');
+						if(op.length === 1) op = '=';
+						else{
+							op = op[0].replace(')', '');
+
+							if(operMoreLess.includes(op) === false && op !== '!=')
+								throw new Error("SQL where: operation $op is not recognized");
+						}
+
+						wheres.push("CHAR_LENGTH("+validateText(matches[0])+") "+op+" ?");
+						objectData.push(value);
+					}
+					else if(operation === 'REGEXP'){
+						if(value.constructor === Array)
+							throw new Error('SQL where: value of' + validateText($matches[0]) + ' must be a string');
+
+	                    wheres.push(validateText(matches[0])+(driver === 'pgsql' ? ' ~ ' : ' REGEXP ')+'?');
+	                    objectData.push(value);
+					}
 				}
 			}
 			else {
 				var type = value === null || value === undefined ? false : value.constructor;
 				if(!type)
-					wheres.push(matches[1] + ' IS NULL');
+					wheres.push(columnName + ' IS NULL');
 				else{
 					if(type === Array){
 						var temp = [];
 						for (var a = 0; a < value.length; a++) {
 							temp.push('?');
 						}
-						wheres.push(matches[1] + ' IN ('+ temp.join(',') +')');
+						wheres.push(columnName + ' IN ('+ temp.join(',') +')');
 						objectData = objectData.concat(value);
 					}
 					else if(type === Number || type === Boolean || type === String){
-						wheres.push(matches[1] + ' = ?');
+						wheres.push(columnName + ' = ?');
 						objectData.push(value);
 					}
-					else console.error('SQL where: value ' + matches[1] + ' with type ' + type.name + ' can\'t be accepted');
+					else console.error('SQL where: value ' + columnName + ' with type ' + type.name + ' can\'t be accepted');
 				}
 			}
 		}
@@ -123,7 +191,7 @@ function SQLQueryBuilder(){
 		for(var i = 0; i < columns.length; i++) {
 			let key = columns[i];
 			if(key === 'ORDER' || key === 'LIMIT')
-                continue;
+				continue;
 
 			var test = key.split('AND');
 			var haveRelation = false;
@@ -195,7 +263,7 @@ function SQLQueryBuilder(){
 
 		if(select !== '*'){
 			if(select.constructor === String)
-				select_ = [select];
+				select_ = [validateText(select)];
 
 			for(var i = 0; i < select_.length; i++){
 				select_[i] = validateText(select_[i]);
@@ -206,7 +274,7 @@ function SQLQueryBuilder(){
 		var wheres = My.makeWhere(where);
 		var query = "SELECT " + (select_ ? select_.join(',') : select) + " FROM " + validateText(tableName) + wheres[0];
 
-		let data = await My.SQLQuery(query, wheres[1]);
+		let data = await My.SQLQuery(query, wheres[1], true);
 		if(data.length !== 0 && preprocessData(tableName, 'get', data[0])){
 			for (var i = 1; i < data.length; i++) {
 				preprocessData(tableName, 'get', data[i]);
@@ -221,7 +289,7 @@ function SQLQueryBuilder(){
 		var wheres = My.makeWhere(where);
 		var query = "SELECT 1 FROM " + validateText(tableName) + wheres[0];
 
-		let data = await My.SQLQuery(query, wheres[1]);
+		let data = await My.SQLQuery(query, wheres[1], true);
 		return data.length !== 0;
 	}
 
@@ -277,10 +345,86 @@ function SQLQueryBuilder(){
 		var objectName = [];
 		var objectData = [];
 		var object_ = copyObject(object); // Object copy before preprocessData
-		preprocessData(tableName, 'set', object_);
+		preprocessData(tableName, 'set', object_, true);
+		var isSQLite = My._isSQLite;
 
 		for (let key in object) {
-			objectName.push(validateText(key)+' = ?');
+			var special = extractSpecial(key);
+			var tableEscaped = validateText(special[0]);
+			var value = object[key];
+
+			if(special.length === 1)
+				objectName.push(`${tableEscaped} = ?`);
+			else {
+				// Add value into array
+				if(special[1] === ',++'){
+					if(isSQLite)
+						objectName.push(`${tableEscaped} = ${tableEscaped} || ?`);
+					else objectName.push(`${tableEscaped} = CONCAT(${tableEscaped}, ?)`);
+
+					if(value.constructor === Array)
+						objectData.push(value.join(',')+',');
+					else objectData.push(value+',');
+					continue;
+				}
+
+				// Remove value from array
+				else if(special[1] === ',--'){
+					if(value.constructor === Array){
+						objectName.push(`${tableEscaped} = REGEXP_REPLACE(${tableEscaped}, ?, ',')`);
+						objectData.push(',('+value.join('|')+'),');
+					}
+					else {
+						objectName.push(`${tableEscaped} = REPLACE(${tableEscaped}, ?, ',')`);
+						objectData.push(','+value+',');
+					}
+					continue;
+				}
+
+				if(value.constructor === String){
+					// Append
+					if(special[1] === 'append'){
+						if(isSQLite)
+							objectName.push(`${tableEscaped} = ${tableEscaped} || ?`);
+						else objectName.push(`${tableEscaped} = CONCAT(${tableEscaped}, ?)`);
+					}
+
+					// Prepend
+					else if(special[1] === 'prepend'){
+						if(isSQLite)
+							objectName.push(`${tableEscaped} = ? || ${tableEscaped}`);
+						else objectName.push(`${tableEscaped} = CONCAT(?, ${tableEscaped})`);
+					}
+
+					else throw new Error(`No operation for '${special[1]}'`);
+				}
+
+				else if(value.constructor === Array){
+					// Replace
+					if(special[1] === 'replace')
+						objectName.push(`${tableEscaped} = REPLACE(${tableEscaped}, ?, ?)`);
+
+					// Wrap
+					else if(special[1] === 'wrap'){
+						if(isSQLite)
+							objectName.push(`${tableEscaped} = ? || ${tableEscaped} || ?`);
+						else objectName.push(`${tableEscaped} = CONCAT(?, ${tableEscaped}, ?)`);
+					}
+
+					else throw new Error(`No operation for '${special[1]}'`);
+
+					objectData.push(value[0]);
+					objectData.push(value[1]);
+					continue;
+				}
+
+				// Math
+				else if(mathOperations.includes(special[1]))
+					objectName.push(`${tableEscaped} = ${tableEscaped} ${special[1]} ?`);
+
+				else throw new Error(`No operation for '${special[1]}'`);
+			}
+
 			objectData.push(object_[key]);
 		}
 
