@@ -1,4 +1,3 @@
-[![Written by](https://img.shields.io/badge/Written%20by-ScarletsFiction-%231e87ff.svg)](LICENSE)
 [![Software License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
 # SFDatabase-js
