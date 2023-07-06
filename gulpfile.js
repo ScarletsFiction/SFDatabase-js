@@ -17,6 +17,7 @@ var browserjs = ['src/_head.js',
 var nodejs = ['src/_head.js',
   'src/QueryBuilder/SQL.js',
   'src/Structures/MySQL.js',
+  'src/Structures/SQLite3.js',
   'src/_foot.js'];
 
 gulp.task('browserjs', function(){

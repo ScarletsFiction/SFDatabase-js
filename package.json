@@ -11,7 +11,7 @@
   "bugs": {
     "url": "https://github.com/ScarletsFiction/SFDatabase-js/issues"
   },
-  "main": "dist/SFDatabase.node.js",
+  "main": "dist/sfdatabase.node.js",
   "browserslist": [
     "Android > 4",
     "IOS >= 7",
@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "start": "gulp serve",
-    "build-prod": "gulp compile"
+    "build-prod": "gulp default"
   },
   "devDependencies": {
     "@babel/core": "^7.17.8",
