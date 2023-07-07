@@ -1,6 +1,8 @@
 tests
 example
 .git
+.github
 src
+gulpfile.js
 pnpm-lock.yaml
 _config.yml
